@@ -19,14 +19,17 @@ public class TextLoader implements LoaderInterface {
                 // Pomijamy puste linie
                 if (line.trim().isEmpty()) continue;
 
-                // Dzielimy linię na części (zakładamy separator spacja " ")
-                String[] parts = line.split(" ");
+                // 1. Czyszczenie: zamieniamy przecinki na kropki w całej linii
+                String cleanedLine = line.replace(',', '.');
+
+                // 2. Dzielenie linii: "\\s+" obsłuży jedną lub wiele spacji/tabulatorów
+                String[] parts = cleanedLine.trim().split("\\s+");
 
                 if (parts.length >= 3) {
                     try {
-                        int id = Integer.parseInt(parts[0].trim());
-                        double x = Double.parseDouble(parts[1].trim());
-                        double y = Double.parseDouble(parts[2].trim());
+                        int id = Integer.parseInt(parts[0]);
+                        double x = Double.parseDouble(parts[1]);
+                        double y = Double.parseDouble(parts[2]);
 
                         // Wywołujemy metodę z klasy Graph
                         graph.addNode(id, x, y);
