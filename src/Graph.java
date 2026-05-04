@@ -18,16 +18,22 @@ public class Graph {
 
     /**
      * Metoda, która służy do budowania grafu podczas czytania pliku.
+     * Tworzy nowy wierzchołek i dodaje go do grafu.
+     * @param id Unikalny identyfikator z pliku C
+     * @param x Współrzędna X obliczona przez algorytm
+     * @param y Współrzędna Y obliczona przez algorytm
      */
     public void addNode(int id, double x, double y) {
-        nodes.put(id, new Node(id, x, y));
+        Node newNode = new Node(id, x, y);
+        nodes.put(id, newNode);
     }
 
     /**
      * Metoda, która służy do dodawania krawędzi.
      */
-    public void addEdge(int u, int v, double weight) {
-        edges.add(new Edge(u, v, weight));
+    public void addEdge(int uId, int vId, double weight) {
+        Edge newEdge = new Edge(uId, vId, weight);
+        edges.add(newEdge);
     }
 
     /**
