@@ -3,43 +3,70 @@ import java.awt.*;
 import java.io.File;
 
 public class MainFrame extends JFrame {
-    private GraphPanel graphPanel; // Twój panel do rysowania
+    private GraphPanel graphPanel; // Panel rysujący graf
 
     public MainFrame() {
-        // Podstawowe ustawienia okna
-        setTitle("Wizualizacja Grafu - Projekt");
-        setSize(1000, 700);
+        // 1. Podstawowe ustawienia okna głównego
+        setTitle("Wizualizacja Grafu - Projekt Java");
+        setSize(1200, 800); 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null); // Środek ekranu
+        setLocationRelativeTo(null); 
 
-        // Tworzymy Twój panel grafu i dodajemy go na środek
+        // 2. Inicjalizacja panelu rysowania
         graphPanel = new GraphPanel();
         add(graphPanel, BorderLayout.CENTER);
 
-        // Tworzymy pasek menu do wczytywania plików
+        // 3. Tworzenie panelu bocznego
+        JPanel sidePanel = new JPanel();
+        sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
+        sidePanel.setBorder(BorderFactory.createTitledBorder("Opcje widoku"));
+        sidePanel.setPreferredSize(new Dimension(200, 0));
+
+        JButton btnReset = new JButton("Odśwież widok");
+        btnReset.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnReset.addActionListener(e -> graphPanel.repaint());
+
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 10))); 
+        sidePanel.add(btnReset);
+        add(sidePanel, BorderLayout.EAST);
+
+        // 4. Pasek menu z obsługą loaderów tekstowych i binarnych
         JMenuBar menuBar = new JMenuBar();
         JMenu menuPlik = new JMenu("Plik");
-        JMenuItem opcjaOtworz = new JMenuItem("Otwórz plik .txt");
 
-        // Obsługa kliknięcia w menu - tutaj łączymy się z kodem Oli
-        opcjaOtworz.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-                File wybranyPlik = fileChooser.getSelectedFile();
-                
-                // Używamy loadera napisanego przez Olę
-                TextLoader loader = new TextLoader();
-                Graph wczytanyGraph = loader.load(wybranyPlik.getAbsolutePath());
-                
-                // Przekazujemy wczytane dane do Twojego panelu
-                if (wczytanyGraph != null) {
-                    graphPanel.setGraph(wczytanyGraph);
-                }
-            }
-        });
+        JMenuItem itemOpenTxt = new JMenuItem("Otwórz plik tekstowy (.txt)");
+        itemOpenTxt.addActionListener(e -> handleFileOpen(new TextLoader()));
 
-        menuPlik.add(opcjaOtworz);
+        JMenuItem itemOpenBin = new JMenuItem("Otwórz plik binarny (.bin)");
+        itemOpenBin.addActionListener(e -> handleFileOpen(new BinaryLoader()));
+
+        menuPlik.add(itemOpenTxt);
+        menuPlik.add(itemOpenBin);
         menuBar.add(menuPlik);
         setJMenuBar(menuBar);
+    }
+
+    /**
+     * Metoda obsługująca automatyczne wczytywanie danych z pliku.
+     */
+    private void handleFileOpen(LoaderInterface loader) {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setPreferredSize(new Dimension(800, 600));
+
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            
+            // Loader wczytuje dane. Teraz krawędzie muszą być częścią logiki loadera
+            Graph graph = loader.load(selectedFile.getAbsolutePath());
+
+            if (graph != null) {
+                // Teraz graphPanel narysuje automatycznie wszystkie krawędzie 
+                // zwrócone przez graph.getEdges()
+                graphPanel.setGraph(graph); 
+                System.out.println("Wczytano graf pomyślnie. Liczba krawędzi: " + graph.getEdges().size());
+            } else {
+                JOptionPane.showMessageDialog(this, "Błąd podczas wczytywania pliku!");
+            }
+        }
     }
 }

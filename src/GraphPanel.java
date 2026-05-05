@@ -45,19 +45,26 @@ public class GraphPanel extends JPanel {
         double scaleY = (rangeY != 0) ? height / rangeY : 1;
         double scale = Math.min(scaleX, scaleY); // Zachowujemy proporcje
 
-        // Rysowanie krawędzi (jeśli są)[cite: 5]
-        g2.setColor(Color.LIGHT_GRAY);
-        for (Edge edge : graph.getEdges()) {
-            Node n1 = graph.getNodes().get(edge.getUId());
-            Node n2 = graph.getNodes().get(edge.getVId());
-            if (n1 != null && n2 != null) {
-                int x1 = (int) ((n1.getX() - minX) * scale) + padding;
-                int y1 = (int) ((n1.getY() - minY) * scale) + padding;
-                int x2 = (int) ((n2.getX() - minX) * scale) + padding;
-                int y2 = (int) ((n2.getY() - minY) * scale) + padding;
-                g2.drawLine(x1, y1, x2, y2);
+        // Ustawienie koloru i grubości krawędzi
+            g2.setColor(Color.DARK_GRAY); // Ciemniejszy kolor dla lepszej widoczności
+            g2.setStroke(new BasicStroke(3.0f)); // Ustawienie grubości linii na 3 piksele
+
+            // Rysowanie wszystkich krawędzi, które są w obiekcie Graph[cite: 5]
+            for (Edge edge : graph.getEdges()) {
+                Node n1 = graph.getNodes().get(edge.getUId());
+                Node n2 = graph.getNodes().get(edge.getVId());
+                
+                if (n1 != null && n2 != null) {
+                    int x1 = (int) ((n1.getX() - minX) * scale) + padding;
+                    int y1 = (int) ((n1.getY() - minY) * scale) + padding;
+                    int x2 = (int) ((n2.getX() - minX) * scale) + padding;
+                    int y2 = (int) ((n2.getY() - minY) * scale) + padding;
+                    
+                    g2.drawLine(x1, y1, x2, y2);
+                }
             }
-        }
+            // Po narysowaniu krawędzi warto zresetować grubość do 1.0 dla innych elementów (np. kółek)
+            g2.setStroke(new BasicStroke(1.0f));
 
         // Rysowanie wierzchołków[cite: 8]
         g2.setColor(Color.BLUE);
