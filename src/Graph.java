@@ -27,6 +27,7 @@ public class Graph {
         Node newNode = new Node(id, x, y);
         nodes.put(id, newNode);
     }
+    
 
     /**
      * Metoda, która służy do dodawania krawędzi.
