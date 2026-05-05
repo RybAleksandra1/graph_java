@@ -1,49 +1,46 @@
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
 
 public class GraphPanel extends JPanel {
-    private Graph graph; // Referencja do grafu, który wczyta Ola[cite: 5]
+    private Graph graph;
 
-    // Metoda do ustawiania grafu i odświeżania widoku
     public void setGraph(Graph graph) {
         this.graph = graph;
-        repaint(); // Wywołuje ponowne malowanie panelu
+        repaint(); // Każemy Javie odmalować panel z nowymi danymi
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (graph == null) return; // Jeśli nie ma grafu, nic nie rób
+        if (graph == null) return;
 
         Graphics2D g2 = (Graphics2D) g;
-        // Włączenie wygładzania krawędzi (antyaliasing)
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); // Ładniejsze krawędzie
 
-        int skala = 100; // Tymczasowa skala, żeby punkty nie były za blisko siebie
-        int przesuniecie = 50; // Margines od krawędzi okna
+        // Proste skalowanie: mnożymy współrzędne przez np. 50, żeby było je widać
+        // Docelowo zrobimy tu lepszą matematykę
+        int offset = 50; 
+        int scale = 100;
 
-        // Rysowanie krawędzi (linii)[cite: 5]
-        g2.setColor(Color.LIGHT_GRAY);
+        // Rysujemy krawędzie[cite: 5]
+        g2.setColor(Color.GRAY);
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
             if (n1 != null && n2 != null) {
-                g2.drawLine(
-                    (int)(n1.getX() * skala) + przesuniecie, 
-                    (int)(n1.getY() * skala) + przesuniecie,
-                    (int)(n2.getX() * skala) + przesuniecie, 
-                    (int)(n2.getY() * skala) + przesuniecie
-                );
+                g2.drawLine((int)(n1.getX()*scale) + offset, (int)(n1.getY()*scale) + offset,
+                            (int)(n2.getX()*scale) + offset, (int)(n2.getY()*scale) + offset);
             }
         }
 
-        // Rysowanie wierzchołków (kółek)[cite: 5, 8]
+        // Rysujemy wierzchołki[cite: 5, 8]
         g2.setColor(Color.BLUE);
         for (Node node : graph.getNodes().values()) {
-            int x = (int) (node.getX() * skala) + przesuniecie;
-            int y = (int) (node.getY() * skala) + przesuniecie;
-            g2.fillOval(x - 6, y - 6, 12, 12); // Rysuje kółko o średnicy 12
-            g2.drawString("ID: " + node.getId(), x + 10, y); // Podpis wierzchołka
+            int x = (int) (node.getX() * scale) + offset;
+            int y = (int) (node.getY() * scale) + offset;
+            g2.fillOval(x - 5, y - 5, 10, 10); // Kółko o promieniu 5
+            g2.drawString(String.valueOf(node.getId()), x + 7, y); // Podpis wierzchołka
         }
     }
 }
