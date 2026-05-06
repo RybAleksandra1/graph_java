@@ -6,13 +6,14 @@ import java.util.List;
 
 /**
  * Klasa odpowiedzialna za wczytywanie grafu z pliku tekstowego (.txt).
- * Rozmieszcza wierzchołki w odległościach proporcjonalnych do wag krawędzi.
+ * Tworzy graf planarny poprzez łączenie wierzchołków według ich kąta względem środka.
  */
 public class TextLoader implements LoaderInterface {
 
     @Override
     public Graph load(String filePath) {
         Graph graph = new Graph();
+        List<Integer> idList = new ArrayList<>(); // Lista do przechowywania kolejności ID
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -29,63 +30,45 @@ public class TextLoader implements LoaderInterface {
 
                 if (parts.length >= 3) {
                     try {
-                        int startNode = Integer.parseInt(parts[0]);
-                        int endNode = Integer.parseInt(parts[1]);
-                        double weight = Double.parseDouble(parts[2]);
+                        int id = Integer.parseInt(parts[0]);
+                        double x = Double.parseDouble(parts[1]);
+                        double y = Double.parseDouble(parts[2]);
 
-                        // 1. Sprawdzamy czy wierzchołki już są w grafie, jeśli nie - dodajemy je
-                        // Ponieważ nie mamy współrzędnych w pliku, dajemy im tymczasowo 0,0
-                        // (Później program Nelli powinien je rozmieścić)
-                        if (!graph.getNodes().containsKey(startNode)) {
-                            graph.addNode(startNode, 0, 0); 
-                        }
-                        if (!graph.getNodes().containsKey(endNode)) {
-                            graph.addNode(endNode, 0, 0);
-                        }
-
-                        // 2. Dodajemy krawędź między nimi
-                        graph.addEdge(startNode, endNode, weight);
-
+                        // 1. Dodajemy wierzchołek do grafu
+                        graph.addNode(id, x, y);
+                        // 2. Zapamiętujemy ID, żeby wiedzieć jak połączyć krawędzie
+                        idList.add(id);
+                    
                     } catch (NumberFormatException e) {
-                        System.err.println("Błąd formatu liczb w linii: " + line);
+                        System.err.println("Błąd formatu w linii: " + line);
                     }
                 }
             }
-            List<Node> nodeList = new ArrayList<>(graph.getNodes().values());
-            if (!nodeList.isEmpty()) {
-                // 1. Pierwszy wierzchołek ląduje w centrum
-                Node first = nodeList.get(0);
-                first.setX(400);
-                first.setY(400);
+            // 2. LOGIKA RYSOWANIA KRAWĘDZI BEZ PRZECIĘĆ (Graf Planarny)
+            List<Node> nodes = new ArrayList<>(graph.getNodes().values());
 
-                // 2. Każdy kolejny wierzchołek ustawiamy względem poprzedniego
-                // w odległości równej wadze krawędzi
-                for (int j = 1; j < nodeList.size(); j++) {
-                    Node currentNode = nodeList.get(j);
-                    Node prevNode = nodeList.get(j - 1);
+            if (nodes.size() > 1) {
+                // Obliczamy środek grafu (centroid), aby wiedzieć wokół czego sortować
+                double centerX = nodes.stream().mapToDouble(Node::getX).average().orElse(0);
+                double centerY = nodes.stream().mapToDouble(Node::getY).average().orElse(0);
 
-                    // Szukamy wagi krawędzi między prevNode a currentNode
-                    double weight = 2.0; // domyślna waga bazowa
-                    for (Edge e : graph.getEdges()) {
-                        // Sprawdzamy połączenie w obie strony (u->v lub v->u)
-                        if ((e.getUId() == prevNode.getId() && e.getVId() == currentNode.getId()) ||
-                            (e.getVId() == prevNode.getId() && e.getUId() == currentNode.getId())) {
-                            weight = e.getWeight();
-                            break;
-                        }
-                    }
+                // Sortujemy punkty według kąta względem środka (Radial Sort)
+                nodes.sort((n1, n2) -> {
+                    double angle1 = Math.atan2(n1.getY() - centerY, n1.getX() - centerX);
+                    double angle2 = Math.atan2(n2.getY() - centerY, n2.getX() - centerX);
+                    return Double.compare(angle1, angle2);
+                });
 
-                    // Skalujemy wagę: waga 1.0 = 50 pikseli. 
-                    // Jeśli graf ucieka z ekranu, zmniejsz 50.0 na mniejszą liczbę.
-                    double visualDistance = weight * 50.0; 
+                // Łączymy wierzchołki w pętlę zgodnie z posortowaną kolejnością
+                for (int i = 0; i < nodes.size(); i++) {
+                    int uId = nodes.get(i).getId();
+                    // Operator % sprawia, że ostatni wierzchołek łączy się z pierwszym
+                    int vId = nodes.get((i + 1) % nodes.size()).getId(); 
                     
-                    // Rozkładamy je spiralnie, żeby nie tworzyły jednej linii
-                    double angle = j * (2 * Math.PI / nodeList.size()); 
-                    
-                    currentNode.setX(prevNode.getX() + Math.cos(angle) * visualDistance);
-                    currentNode.setY(prevNode.getY() + Math.sin(angle) * visualDistance);
+                    graph.addEdge(uId, vId);
                 }
             }
+
         } catch (IOException e) {
             System.err.println("Nie udało się otworzyć pliku: " + e.getMessage());
         }

@@ -43,17 +43,11 @@ public class Main {
 
         if (result == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
-            String path = selectedFile.getAbsolutePath();
 
             // 5. Wybór odpowiedniego loadera na podstawie wcześniejszej decyzji
-            LoaderInterface loader;
-            if (choice == 0) {
-                loader = new TextLoader();
-            } else {
-                loader = new BinaryLoader();
-            }
 
-            Graph graph = loader.load(path);
+            LoaderInterface loader = (choice == 0) ? new TextLoader() : new BinaryLoader();
+            Graph graph = loader.load(selectedFile.getAbsolutePath());
 
             if (graph != null && !graph.getNodes().isEmpty()) {
                 System.out.println("SUKCES! Wczytano " + graph.getNodes().size() + " wezlow.");

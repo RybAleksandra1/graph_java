@@ -30,11 +30,22 @@ public class Graph {
     
 
     /**
-     * Metoda, która służy do dodawania krawędzi.
+     * Dodaje krawędź między wierzchołkami.
+     * Waga jest obliczana automatycznie na podstawie pozycji wierzchołków. 
+     * (Waga = Długość krawędzi)
      */
-    public void addEdge(int uId, int vId, double weight) {
-        Edge newEdge = new Edge(uId, vId, weight);
-        edges.add(newEdge);
+    public void addEdge(int uId, int vId) {
+        Node n1 = nodes.get(uId);
+        Node n2 = nodes.get(vId);
+
+        if (n1 != null && n2 != null) {
+            // Wywołujemy konstruktor Edge(Node n1, Node n2), 
+            // który sam policzy dystans (wagę)
+            Edge newEdge = new Edge(n1, n2);
+            edges.add(newEdge);
+        } else {
+            System.err.println("Nie można dodać krawędzi: brak wierzchołka o ID " + uId + " lub " + vId);
+        }
     }
 
     /**

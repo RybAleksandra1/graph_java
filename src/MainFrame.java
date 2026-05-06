@@ -108,7 +108,11 @@ public class MainFrame extends JFrame {
 
     private void handleFileOpen(LoaderInterface loader) {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setPreferredSize(new Dimension(800, 600));
+        fileChooser.setPreferredSize(new Dimension(1200, 800));
+
+        // Odświeżamy UI, aby zastosować duże czcionki z UIManager
+        fileChooser.updateUI();
+
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
             Graph graph = loader.load(selectedFile.getAbsolutePath());
