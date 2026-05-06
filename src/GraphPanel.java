@@ -60,7 +60,31 @@ public class GraphPanel extends JPanel {
                     int x2 = (int) ((n2.getX() - minX) * scale) + padding;
                     int y2 = (int) ((n2.getY() - minY) * scale) + padding;
                     
+                    // Ustawienie koloru i grubości przed rysowaniem
+                    g2.setColor(Color.DARK_GRAY); 
+                    g2.setStroke(new BasicStroke(3.0f));
+                    // Rysujemy samą krawędź
                     g2.drawLine(x1, y1, x2, y2);
+
+                    // 2. Obliczamy środek linii
+                    int midX = (x1 + x2) / 2;
+                    int midY = (y1 + y2) / 2;
+
+                    // 3. Opcjonalne: Małe tło pod tekst (żeby waga była czytelna na tle linii)
+                    String weightText = String.format("%.2f", edge.getWeight());
+                    g2.setFont(new Font("Arial", Font.BOLD, 18));
+                    
+                    // Pobieramy rozmiar tekstu, żeby idealnie wycentrować prostokąt
+                    FontMetrics fm = g2.getFontMetrics();
+                    int textWidth = fm.stringWidth(weightText);
+                    int textHeight = fm.getHeight();
+                    
+                    g2.setColor(new Color(255, 255, 255, 200)); // Półprzezroczysty biały
+                    g2.fillRect(midX - textWidth/2 - 4, midY - textHeight/2, textWidth + 8, textHeight);
+
+                    // 4. Rysujemy tekst wagi
+                    g2.setColor(Color.RED); // Kolor czerwony dla wyróżnienia wag
+                    g2.drawString(weightText, midX - textWidth/2, midY + textHeight/4);
                 }
             }
             // Po narysowaniu krawędzi warto zresetować grubość do 1.0 dla innych elementów (np. kółek)
@@ -71,10 +95,13 @@ public class GraphPanel extends JPanel {
         for (Node node : graph.getNodes().values()) {
             int x = (int) ((node.getX() - minX) * scale) + padding;
             int y = (int) ((node.getY() - minY) * scale) + padding;
-            g2.fillOval(x - 8, y - 8, 16, 16); // Kółka o stałej wielkości
+
             g2.setColor(Color.BLACK);
-            g2.drawString("ID: " + node.getId(), x + 10, y);
+            g2.fillOval(x - 8, y - 8, 16, 16); // Kółka o stałej wielkości
+
             g2.setColor(Color.BLUE);
+            g2.setFont(new Font("Arial", Font.BOLD, 20));
+            g2.drawString("ID: " + node.getId(), x + 15, y);
         }
     }
 }

@@ -27,15 +27,39 @@ public class TextLoader implements LoaderInterface {
 
                 if (parts.length >= 3) {
                     try {
-                        int id = Integer.parseInt(parts[0]);
-                        double x = Double.parseDouble(parts[1]);
-                        double y = Double.parseDouble(parts[2]);
+                        int startNode = Integer.parseInt(parts[0]);
+                        int endNode = Integer.parseInt(parts[1]);
+                        double weight = Double.parseDouble(parts[2]);
 
-                        // Wywołujemy metodę z klasy Graph
-                        graph.addNode(id, x, y);
+                        // 1. Sprawdzamy czy wierzchołki już są w grafie, jeśli nie - dodajemy je
+                        // Ponieważ nie mamy współrzędnych w pliku, dajemy im tymczasowo 0,0
+                        // (Później program Nelli powinien je rozmieścić)
+                        if (!graph.getNodes().containsKey(startNode)) {
+                            graph.addNode(startNode, 0, 0); 
+                        }
+                        if (!graph.getNodes().containsKey(endNode)) {
+                            graph.addNode(endNode, 0, 0);
+                        }
+
+                        // 2. Dodajemy krawędź między nimi
+                        graph.addEdge(startNode, endNode, weight);
+
                     } catch (NumberFormatException e) {
                         System.err.println("Błąd formatu liczb w linii: " + line);
                     }
+                }
+            }
+            // Rozmieszczenie wierzchołków na planie koła
+            int n = graph.getNodes().size();
+            if (n > 0) {
+                int i = 0;
+                double radius = 250; // Rozmiar koła
+                for (Node node : graph.getNodes().values()) {
+                    double angle = 2.0 * Math.PI * i / n;
+                    // Ustawiamy współrzędne tak, by środek był mniej więcej na 400,400
+                    node.setX(Math.cos(angle) * radius + 400); 
+                    node.setY(Math.sin(angle) * radius + 400);
+                    i++;
                 }
             }
         } catch (IOException e) {
