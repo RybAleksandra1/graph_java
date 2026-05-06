@@ -1,10 +1,12 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList; 
+import java.util.List;      
 
 /**
  * Klasa odpowiedzialna za wczytywanie grafu z pliku tekstowego (.txt).
- * Implementuje LoaderInterface.
+ * Rozmieszcza wierzchołki w odległościach proporcjonalnych do wag krawędzi.
  */
 public class TextLoader implements LoaderInterface {
 
@@ -49,16 +51,40 @@ public class TextLoader implements LoaderInterface {
                     }
                 }
             }
-            // Rozmieszczenie wierzchołków na planie koła
-            int n = graph.getNodes().size();
-            int i = 0;
-            double radius = 200; // promień koła
+            List<Node> nodeList = new ArrayList<>(graph.getNodes().values());
+            if (!nodeList.isEmpty()) {
+                // 1. Pierwszy wierzchołek ląduje w centrum
+                Node first = nodeList.get(0);
+                first.setX(400);
+                first.setY(400);
 
-            for (Node node : graph.getNodes().values()) {
-                double angle = 2.0 * Math.PI * i / n;
-                node.setX(Math.cos(angle) * radius + 300); // 300 to środek ekranu
-                node.setY(Math.sin(angle) * radius + 300);
-                i++;
+                // 2. Każdy kolejny wierzchołek ustawiamy względem poprzedniego
+                // w odległości równej wadze krawędzi
+                for (int j = 1; j < nodeList.size(); j++) {
+                    Node currentNode = nodeList.get(j);
+                    Node prevNode = nodeList.get(j - 1);
+
+                    // Szukamy wagi krawędzi między prevNode a currentNode
+                    double weight = 2.0; // domyślna waga bazowa
+                    for (Edge e : graph.getEdges()) {
+                        // Sprawdzamy połączenie w obie strony (u->v lub v->u)
+                        if ((e.getUId() == prevNode.getId() && e.getVId() == currentNode.getId()) ||
+                            (e.getVId() == prevNode.getId() && e.getUId() == currentNode.getId())) {
+                            weight = e.getWeight();
+                            break;
+                        }
+                    }
+
+                    // Skalujemy wagę: waga 1.0 = 50 pikseli. 
+                    // Jeśli graf ucieka z ekranu, zmniejsz 50.0 na mniejszą liczbę.
+                    double visualDistance = weight * 50.0; 
+                    
+                    // Rozkładamy je spiralnie, żeby nie tworzyły jednej linii
+                    double angle = j * (2 * Math.PI / nodeList.size()); 
+                    
+                    currentNode.setX(prevNode.getX() + Math.cos(angle) * visualDistance);
+                    currentNode.setY(prevNode.getY() + Math.sin(angle) * visualDistance);
+                }
             }
         } catch (IOException e) {
             System.err.println("Nie udało się otworzyć pliku: " + e.getMessage());
