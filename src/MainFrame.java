@@ -69,4 +69,8 @@ public class MainFrame extends JFrame {
             }
         }
     }
+    // Metoda, która pozwala klasie Main dostać się do panelu grafu
+    public GraphPanel getGraphPanel() {
+        return this.graphPanel;
+    }
 }

@@ -1,8 +1,5 @@
 import javax.swing.*;
 import java.awt.*;
-import java.util.Collections;
-import java.util.ArrayList;
-import java.util.List;
 
 public class GraphPanel extends JPanel {
     private Graph graph;

@@ -51,16 +51,14 @@ public class TextLoader implements LoaderInterface {
             }
             // Rozmieszczenie wierzchołków na planie koła
             int n = graph.getNodes().size();
-            if (n > 0) {
-                int i = 0;
-                double radius = 250; // Rozmiar koła
-                for (Node node : graph.getNodes().values()) {
-                    double angle = 2.0 * Math.PI * i / n;
-                    // Ustawiamy współrzędne tak, by środek był mniej więcej na 400,400
-                    node.setX(Math.cos(angle) * radius + 400); 
-                    node.setY(Math.sin(angle) * radius + 400);
-                    i++;
-                }
+            int i = 0;
+            double radius = 200; // promień koła
+
+            for (Node node : graph.getNodes().values()) {
+                double angle = 2.0 * Math.PI * i / n;
+                node.setX(Math.cos(angle) * radius + 300); // 300 to środek ekranu
+                node.setY(Math.sin(angle) * radius + 300);
+                i++;
             }
         } catch (IOException e) {
             System.err.println("Nie udało się otworzyć pliku: " + e.getMessage());
