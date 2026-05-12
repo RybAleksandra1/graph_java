@@ -3,6 +3,8 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D; // Ważne do detekcji linii
+import java.util.HashMap;
+import java.util.Map;
 
 public class GraphPanel extends JPanel {
     private Graph graph;
@@ -18,6 +20,9 @@ public class GraphPanel extends JPanel {
     private Node draggedNode = null; 
     private Edge draggedEdge = null; // Przechowuje wybraną krawędź
     private Point lastMousePoint = null; // Zapamiętuje poprzednią pozycję myszy
+
+    // Pamięć początkowego układu
+    private Map<Integer, Point.Double> originalPositions = new HashMap<>();
 
     public GraphPanel() {
         MouseAdapter ma = new MouseAdapter() {
@@ -126,6 +131,21 @@ public class GraphPanel extends JPanel {
         addMouseMotionListener(ma);
     }
 
+    // --- PRZYWRACANIE UKŁADU ---
+    public void resetLayout() {
+        if (graph == null || originalPositions.isEmpty()) return;
+        
+        for (Node node : graph.getNodes().values()) {
+            Point.Double pos = originalPositions.get(node.getId());
+            if (pos != null) {
+                node.setX(pos.x);
+                node.setY(pos.y);
+            }
+        }
+        this.zoomFactor = 1.0; // reset zoomu
+        repaint();
+    }
+
     // --- LOGIKA WALIDACJI PLANARNOŚCI ---
 
     private boolean isGraphPlanar() {
@@ -222,6 +242,13 @@ public class GraphPanel extends JPanel {
 
     public void setGraph(Graph graph) {
         this.graph = graph;
+        // zapisywanie początkowych pozycji
+        originalPositions.clear();
+        if (graph != null) {
+            for (Node node : graph.getNodes().values()) {
+                originalPositions.put(node.getId(), new Point.Double(node.getX(), node.getY()));
+            }
+        }
         repaint();
     }
 

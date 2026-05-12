@@ -59,6 +59,11 @@ public class MainFrame extends JFrame {
         sidePanel.setBorder(BorderFactory.createTitledBorder("Opcje widoku"));
         sidePanel.setPreferredSize(new Dimension(220, 0));
 
+        // Przycisk reset układu
+        JButton btnReset = new JButton("Przywróć układ");
+        btnReset.setBackground(new Color(200, 220, 255));
+        btnReset.addActionListener(e -> graphPanel.resetLayout());
+
         // Przyciski kolorów
         JButton btnNodeColor = new JButton("Kolor punktów");
         btnNodeColor.addActionListener(e -> {
@@ -84,6 +89,11 @@ public class MainFrame extends JFrame {
         sidePanel.add(btnNodeColor);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnEdgeColor);
+
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        sidePanel.add(new JLabel(" Akcje:"));
+        sidePanel.add(btnReset); // Dodajemy przycisk resetu
+        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 20)));
         sidePanel.add(new JLabel(" Rozmiar punktów:"));
         sidePanel.add(spinSize);
