@@ -1,13 +1,37 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseWheelEvent; // DODANE
 
 public class GraphPanel extends JPanel {
     private Graph graph;
+    
+    // Zmienne wyglądu
+    private Color nodeColor = Color.BLACK;
+    private Color edgeColor = Color.DARK_GRAY;
+    private int nodeSize = 16;
+    private int edgeThickness = 3;
+
+    // NOWE: Współczynnik przybliżenia
+    private double zoomFactor = 1.0;
 
     public void setGraph(Graph graph) {
         this.graph = graph;
+        this.zoomFactor = 1.0; // Reset zoomu przy nowym pliku
         repaint();
     }
+
+    // NOWE: Metody do obsługi zoomu
+    public void setZoomFactor(double zoomFactor) {
+        this.zoomFactor = Math.max(0.1, zoomFactor); // Nie pozwalamy na zoom < 10%
+        repaint();
+    }
+    public double getZoomFactor() { return zoomFactor; }
+
+    // Metody do zmiany kolorów (zostają bez zmian)
+    public void setNodeColor(Color c) { this.nodeColor = c; repaint(); }
+    public void setEdgeColor(Color c) { this.edgeColor = c; repaint(); }
+    public void setNodeSize(int s) { this.nodeSize = s; repaint(); }
+    public void setEdgeThickness(int t) { this.edgeThickness = t; repaint(); }
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -17,7 +41,7 @@ public class GraphPanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 1. Szukamy ekstremów, żeby wiedzieć jak duży jest graf
+        // --- Obliczanie bazy skalowania ---
         double minX = Double.MAX_VALUE, maxX = Double.MIN_VALUE;
         double minY = Double.MAX_VALUE, maxY = Double.MIN_VALUE;
 
@@ -28,77 +52,58 @@ public class GraphPanel extends JPanel {
             if (n.getY() > maxY) maxY = n.getY();
         }
 
-        // 2. Obliczamy dostępny rozmiar okna (z marginesem 50px)
         int padding = 50;
         int width = getWidth() - 2 * padding;
         int height = getHeight() - 2 * padding;
 
-        // 3. Obliczamy skalę, żeby graf zajął całe dostępne miejsce
         double rangeX = maxX - minX;
         double rangeY = maxY - minY;
         
-        // Unikamy dzielenia przez zero dla pojedynczego punktu
-        double scaleX = (rangeX != 0) ? width / rangeX : 1;
-        double scaleY = (rangeY != 0) ? height / rangeY : 1;
-        double scale = Math.min(scaleX, scaleY); // Zachowujemy proporcje
+        double scaleX = (rangeX > 0.1) ? width / rangeX : 1;
+        double scaleY = (rangeY > 0.1) ? height / rangeY : 1;
+        
+        // NOWE: Mnożymy podstawową skalę przez zoomFactor
+        double baseScale = Math.min(scaleX, scaleY);
+        double finalScale = baseScale * zoomFactor;
 
-        // Ustawienie koloru i grubości krawędzi
-            g2.setColor(Color.DARK_GRAY); // Ciemniejszy kolor dla lepszej widoczności
-            g2.setStroke(new BasicStroke(3.0f)); // Ustawienie grubości linii na 3 piksele
+        // Środek panelu (żeby zoom "celował" w środek)
+        int centerX = getWidth() / 2;
+        int centerY = getHeight() / 2;
 
-            // Rysowanie wszystkich krawędzi, które są w obiekcie Graph[cite: 5]
-            for (Edge edge : graph.getEdges()) {
-                Node n1 = graph.getNodes().get(edge.getUId());
-                Node n2 = graph.getNodes().get(edge.getVId());
+        // RYSOWANIE KRAWĘDZI
+        g2.setStroke(new BasicStroke(edgeThickness));
+        for (Edge edge : graph.getEdges()) {
+            Node n1 = graph.getNodes().get(edge.getUId());
+            Node n2 = graph.getNodes().get(edge.getVId());
+            
+            if (n1 != null && n2 != null) {
+                // Obliczamy pozycję względem środka grafu i nakładamy zoom
+                int x1 = (int) ((n1.getX() - (minX + maxX)/2) * finalScale) + centerX;
+                int y1 = (int) ((n1.getY() - (minY + maxY)/2) * finalScale) + centerY;
+                int x2 = (int) ((n2.getX() - (minX + maxX)/2) * finalScale) + centerX;
+                int y2 = (int) ((n2.getY() - (minY + maxY)/2) * finalScale) + centerY;
                 
-                if (n1 != null && n2 != null) {
-                    int x1 = (int) ((n1.getX() - minX) * scale) + padding;
-                    int y1 = (int) ((n1.getY() - minY) * scale) + padding;
-                    int x2 = (int) ((n2.getX() - minX) * scale) + padding;
-                    int y2 = (int) ((n2.getY() - minY) * scale) + padding;
-                    
-                    // Ustawienie koloru i grubości przed rysowaniem
-                    g2.setColor(Color.DARK_GRAY); 
-                    g2.setStroke(new BasicStroke(3.0f));
-                    // Rysujemy samą krawędź
-                    g2.drawLine(x1, y1, x2, y2);
+                g2.setColor(edgeColor); 
+                g2.drawLine(x1, y1, x2, y2);
 
-                    // 2. Obliczamy środek linii
-                    int midX = (x1 + x2) / 2;
-                    int midY = (y1 + y2) / 2;
-
-                    // 3. Opcjonalne: Małe tło pod tekst (żeby waga była czytelna na tle linii)
-                    String weightText = String.format("%.2f", edge.getWeight());
-                    g2.setFont(new Font("Arial", Font.BOLD, 18));
-                    
-                    // Pobieramy rozmiar tekstu, żeby idealnie wycentrować prostokąt
-                    FontMetrics fm = g2.getFontMetrics();
-                    int textWidth = fm.stringWidth(weightText);
-                    int textHeight = fm.getHeight();
-                    
-                    g2.setColor(new Color(255, 255, 255, 200)); // Półprzezroczysty biały
-                    g2.fillRect(midX - textWidth/2 - 4, midY - textHeight/2, textWidth + 8, textHeight);
-
-                    // 4. Rysujemy tekst wagi
-                    g2.setColor(Color.RED); // Kolor czerwony dla wyróżnienia wag
-                    g2.drawString(weightText, midX - textWidth/2, midY + textHeight/4);
-                }
+                String weightText = String.format("%.2f", edge.getWeight());
+                g2.setFont(new Font("Arial", Font.BOLD, 14));
+                g2.setColor(Color.RED);
+                g2.drawString(weightText, (x1 + x2) / 2, (y1 + y2) / 2);
             }
-            // Po narysowaniu krawędzi warto zresetować grubość do 1.0 dla innych elementów (np. kółek)
-            g2.setStroke(new BasicStroke(1.0f));
+        }
 
-        // Rysowanie wierzchołków[cite: 8]
-        g2.setColor(Color.BLUE);
+        // RYSOWANIE WIERZCHOŁKÓW
         for (Node node : graph.getNodes().values()) {
-            int x = (int) ((node.getX() - minX) * scale) + padding;
-            int y = (int) ((node.getY() - minY) * scale) + padding;
+            int x = (int) ((node.getX() - (minX + maxX)/2) * finalScale) + centerX;
+            int y = (int) ((node.getY() - (minY + maxY)/2) * finalScale) + centerY;
 
-            g2.setColor(Color.BLACK);
-            g2.fillOval(x - 8, y - 8, 16, 16); // Kółka o stałej wielkości
+            g2.setColor(nodeColor);
+            g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
 
             g2.setColor(Color.BLUE);
-            g2.setFont(new Font("Arial", Font.BOLD, 20));
-            g2.drawString("ID: " + node.getId(), x + 15, y);
+            g2.setFont(new Font("Arial", Font.BOLD, 15));
+            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 2, y);
         }
     }
 }
