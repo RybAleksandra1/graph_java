@@ -20,6 +20,8 @@ public class GraphPanel extends JPanel {
     private Node draggedNode = null; 
     private Edge draggedEdge = null; // Przechowuje wybraną krawędź
     private Point lastMousePoint = null; // Zapamiętuje poprzednią pozycję myszy
+    private double offsetX = 0; // Przesunięcie widoku X
+    private double offsetY = 0; // Przesunięcie widoku Y
 
     // Pamięć początkowego układu
     private Map<Integer, Point.Double> originalPositions = new HashMap<>();
@@ -42,8 +44,8 @@ public class GraphPanel extends JPanel {
                 // 1. Najpierw sprawdzamy wierzchołki (priorytet)
                 draggedNode = null;
                 for (Node node : graph.getNodes().values()) {
-                    int nx = (int) ((node.getX() - (bounds[0] + bounds[1])/2) * scale) + centerX;
-                    int ny = (int) ((node.getY() - (bounds[2] + bounds[3])/2) * scale) + centerY;
+                    int nx = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
+                    int ny = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
 
                     if (Math.hypot(e.getX() - nx, e.getY() - ny) < nodeSize) {
                         draggedNode = node;
@@ -56,10 +58,10 @@ public class GraphPanel extends JPanel {
                     Node n1 = graph.getNodes().get(edge.getUId());
                     Node n2 = graph.getNodes().get(edge.getVId());
                     if (n1 != null && n2 != null) {
-                        int x1 = (int) ((n1.getX() - midX) * scale) + centerX;
-                        int y1 = (int) ((n1.getY() - midY) * scale) + centerY;
-                        int x2 = (int) ((n2.getX() - midX) * scale) + centerX;
-                        int y2 = (int) ((n2.getY() - midY) * scale) + centerY;
+                        int x1 = (int) ((n1.getX() - midX) * scale) + centerX + (int)offsetX;
+                        int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
+                        int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
+                        int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
 
                         // Sprawdzamy czy mysz jest blisko linii (margines 5 pikseli)
                         if (Line2D.ptSegDist(x1, y1, x2, y2, e.getX(), e.getY()) < 5) {
@@ -81,44 +83,53 @@ public class GraphPanel extends JPanel {
             public void mouseDragged(MouseEvent e) {
                 if (graph == null || lastMousePoint == null) return;
 
-                double[] bounds = calculateGraphBounds();
-                double scale = calculateScale(bounds);
-
-                // Obliczamy o ile przesunęła się mysz w jednostkach grafu
-                double dx = (e.getX() - lastMousePoint.x) / scale;
-                double dy = (e.getY() - lastMousePoint.y) / scale;
-
-                // PRZESUWANIE WIERZCHOŁKA
-                if (draggedNode != null) {
-                    double oldX = draggedNode.getX();
-                    double oldY = draggedNode.getY();
-                    
-                    // Próba ruchu
-                    draggedNode.setX(oldX + dx);
-                    draggedNode.setY(oldY + dy);
-                    
-                    // Walidacja - jeśli ruch psuje planarność, cofamy go
-                    if (!isGraphPlanar()) {
-                        draggedNode.setX(oldX);
-                        draggedNode.setY(oldY);
-                    }
+                // PRZESUWANIE EKRANU (TŁA)
+                if (draggedNode == null && draggedEdge == null) {
+                    offsetX += (e.getX() - lastMousePoint.x);
+                    offsetY += (e.getY() - lastMousePoint.y);
                 } 
-                else if (draggedEdge != null) {
-                    Node n1 = graph.getNodes().get(draggedEdge.getUId());
-                    Node n2 = graph.getNodes().get(draggedEdge.getVId());
-                    
-                    if (n1 != null && n2 != null) {
-                        double oldX1 = n1.getX(), oldY1 = n1.getY();
-                        double oldX2 = n2.getX(), oldY2 = n2.getY();
+                // PRZESUWANIE OBIEKTÓW
+                else {
+
+                    double[] bounds = calculateGraphBounds();
+                    double scale = calculateScale(bounds);
+
+                    // Obliczamy o ile przesunęła się mysz w jednostkach grafu
+                    double dx = (e.getX() - lastMousePoint.x) / scale;
+                    double dy = (e.getY() - lastMousePoint.y) / scale;
+
+                    // PRZESUWANIE WIERZCHOŁKA
+                    if (draggedNode != null) {
+                        double oldX = draggedNode.getX();
+                        double oldY = draggedNode.getY();
                         
-                        // Próba ruchu obu wierzchołków
-                        n1.setX(oldX1 + dx); n1.setY(oldY1 + dy);
-                        n2.setX(oldX2 + dx); n2.setY(oldY2 + dy);
+                        // Próba ruchu
+                        draggedNode.setX(oldX + dx);
+                        draggedNode.setY(oldY + dy);
                         
-                        // Walidacja
+                        // Walidacja - jeśli ruch psuje planarność, cofamy go
                         if (!isGraphPlanar()) {
-                            n1.setX(oldX1); n1.setY(oldY1);
-                            n2.setX(oldX2); n2.setY(oldY2);
+                            draggedNode.setX(oldX);
+                            draggedNode.setY(oldY);
+                        }
+                    } 
+                    else if (draggedEdge != null) {
+                        Node n1 = graph.getNodes().get(draggedEdge.getUId());
+                        Node n2 = graph.getNodes().get(draggedEdge.getVId());
+                        
+                        if (n1 != null && n2 != null) {
+                            double oldX1 = n1.getX(), oldY1 = n1.getY();
+                            double oldX2 = n2.getX(), oldY2 = n2.getY();
+                            
+                            // Próba ruchu obu wierzchołków
+                            n1.setX(oldX1 + dx); n1.setY(oldY1 + dy);
+                            n2.setX(oldX2 + dx); n2.setY(oldY2 + dy);
+                            
+                            // Walidacja
+                            if (!isGraphPlanar()) {
+                                n1.setX(oldX1); n1.setY(oldY1);
+                                n2.setX(oldX2); n2.setY(oldY2);
+                            }
                         }
                     }
                 }
@@ -143,6 +154,8 @@ public class GraphPanel extends JPanel {
             }
         }
         this.zoomFactor = 1.0; // reset zoomu
+        this.offsetX = 0; // Reset przesunięcia ekranu
+        this.offsetY = 0;
         repaint();
     }
 
@@ -249,6 +262,8 @@ public class GraphPanel extends JPanel {
                 originalPositions.put(node.getId(), new Point.Double(node.getX(), node.getY()));
             }
         }
+        this.offsetX = 0; // Wycentrowanie przy nowym grafie
+        this.offsetY = 0;
         repaint();
     }
 
@@ -282,18 +297,18 @@ public class GraphPanel extends JPanel {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
             if (n1 != null && n2 != null) {
-                int x1 = (int) ((n1.getX() - midX) * scale) + centerX;
-                int y1 = (int) ((n1.getY() - midY) * scale) + centerY;
-                int x2 = (int) ((n2.getX() - midX) * scale) + centerX;
-                int y2 = (int) ((n2.getY() - midY) * scale) + centerY;
+                int x1 = (int) ((n1.getX() - midX) * scale) + centerX + (int)offsetX;
+                int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
+                int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
+                int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
                 g2.drawLine(x1, y1, x2, y2);
             }
         }
 
         // Rysowanie wierzchołków
         for (Node node : graph.getNodes().values()) {
-            int x = (int) ((node.getX() - midX) * scale) + centerX;
-            int y = (int) ((node.getY() - midY) * scale) + centerY;
+            int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
+            int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
             g2.setColor(nodeColor);
             g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
             g2.setColor(Color.BLUE);
