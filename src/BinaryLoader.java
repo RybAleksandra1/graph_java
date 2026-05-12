@@ -23,22 +23,23 @@ public class BinaryLoader implements LoaderInterface {
             ByteBuffer bb = ByteBuffer.wrap(allBytes);
             bb.order(ByteOrder.LITTLE_ENDIAN);
 
-            // Zakładamy, że jedna krawędź/wierzchołek to: int(4) + padding(4) + double(8) + double(8)
-            // Razem 24 bajty
-            while (bb.remaining() >= 24) {
-                int id = bb.getInt();
+            // W Twoim kodzie C zapisujesz pola po kolei:
+            // id (4b), x (8b), y (8b) = 20 bajtów na rekord.
+            // NIE ma node_count na początku i NIE ma paddingu.
 
-                // SKOK: Pomijamy 4 bajty wyrównania, które dodał kompilator C
-                bb.position(bb.position() + 4);
+            int loadedNodes = 0;
+            while (bb.remaining() >= 20) {
+                int id = bb.getInt();      // 4 bajty
+                double x = bb.getDouble(); // 8 bajtów
+                double y = bb.getDouble(); // 8 bajtów
 
-                double x = bb.getDouble();
-                double y = bb.getDouble();
-
-                // Debug: Wypisz w konsoli, żeby sprawdzić czy liczby są "normalne"
                 System.out.println("BIN Load -> ID: " + id + " X: " + x + " Y: " + y);
                 
                 graph.addNode(id, x, y);
+                loadedNodes++;
             }
+            
+            System.out.println("Suma wczytanych węzłów: " + loadedNodes);
 
             // LOGIKA RYSOWANIA KRAWĘDZI (identyczna jak w TextLoaderze)
             List<Node> nodes = new ArrayList<>(graph.getNodes().values());
@@ -57,9 +58,7 @@ public class BinaryLoader implements LoaderInterface {
 
                 // Łączymy w pętlę
                 for (int i = 0; i < nodes.size(); i++) {
-                    int uId = nodes.get(i).getId();
-                    int vId = nodes.get((i + 1) % nodes.size()).getId();
-                    graph.addEdge(uId, vId);
+                    graph.addEdge(nodes.get(i).getId(), nodes.get((i + 1) % nodes.size()).getId());
                 }
             }
 
