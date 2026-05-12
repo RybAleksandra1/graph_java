@@ -1,7 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
-import javax.swing.event.ChangeEvent; // Ważne dla suwaków!
+
 
 public class MainFrame extends JFrame {
     private GraphPanel graphPanel; // Panel rysujący graf

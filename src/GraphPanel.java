@@ -1,6 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseWheelEvent; // DODANE
+
 
 public class GraphPanel extends JPanel {
     private Graph graph;
