@@ -85,19 +85,36 @@ public class GraphPanel extends JPanel {
 
                 // PRZESUWANIE WIERZCHOŁKA
                 if (draggedNode != null) {
-                    draggedNode.setX(draggedNode.getX() + dx);
-                    draggedNode.setY(draggedNode.getY() + dy);
+                    double oldX = draggedNode.getX();
+                    double oldY = draggedNode.getY();
+                    
+                    // Próba ruchu
+                    draggedNode.setX(oldX + dx);
+                    draggedNode.setY(oldY + dy);
+                    
+                    // Walidacja - jeśli ruch psuje planarność, cofamy go
+                    if (!isGraphPlanar()) {
+                        draggedNode.setX(oldX);
+                        draggedNode.setY(oldY);
+                    }
                 } 
-                // PRZESUWANIE KRAWĘDZI (Ruch dwóch wierzchołków naraz)
                 else if (draggedEdge != null) {
                     Node n1 = graph.getNodes().get(draggedEdge.getUId());
                     Node n2 = graph.getNodes().get(draggedEdge.getVId());
                     
                     if (n1 != null && n2 != null) {
-                        n1.setX(n1.getX() + dx);
-                        n1.setY(n1.getY() + dy);
-                        n2.setX(n2.getX() + dx);
-                        n2.setY(n2.getY() + dy);
+                        double oldX1 = n1.getX(), oldY1 = n1.getY();
+                        double oldX2 = n2.getX(), oldY2 = n2.getY();
+                        
+                        // Próba ruchu obu wierzchołków
+                        n1.setX(oldX1 + dx); n1.setY(oldY1 + dy);
+                        n2.setX(oldX2 + dx); n2.setY(oldY2 + dy);
+                        
+                        // Walidacja
+                        if (!isGraphPlanar()) {
+                            n1.setX(oldX1); n1.setY(oldY1);
+                            n2.setX(oldX2); n2.setY(oldY2);
+                        }
                     }
                 }
 
@@ -108,6 +125,80 @@ public class GraphPanel extends JPanel {
         addMouseListener(ma);
         addMouseMotionListener(ma);
     }
+
+    // --- LOGIKA WALIDACJI PLANARNOŚCI ---
+
+    private boolean isGraphPlanar() {
+        java.util.List<Edge> edges = graph.getEdges();
+        int size = edges.size();
+        
+        for (int i = 0; i < size; i++) {
+            for (int j = i + 1; j < size; j++) {
+                Edge e1 = edges.get(i);
+                Edge e2 = edges.get(j);
+                
+                Node a = graph.getNodes().get(e1.getUId());
+                Node b = graph.getNodes().get(e1.getVId());
+                Node c = graph.getNodes().get(e2.getUId());
+                Node d = graph.getNodes().get(e2.getVId());
+                
+                if (a == null || b == null || c == null || d == null) continue;
+
+                // Sprawdzamy czy odcinki się przecinają
+                if (intersect(a, b, c, d)) return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean intersect(Node a, Node b, Node c, Node d) {
+        // 1. Orientacje dla testu "X"
+        int o1 = relativeOrientation(a, b, c);
+        int o2 = relativeOrientation(a, b, d);
+        int o3 = relativeOrientation(c, d, a);
+        int o4 = relativeOrientation(c, d, b);
+
+        // 2. Standardowe przecięcie (krzyżowanie się krawędzi)
+        if (a != c && a != d && b != c && b != d) {
+            if (o1 != o2 && o3 != o4) return true;
+        }
+
+        // 3. BLOKADA NAKŁADANIA (Współliniowość i bliskość)
+        // Sprawdzamy, czy wierzchołek jednej krawędzi nie dotyka lub nie leży na drugiej krawędzi
+        if (isPointTooCloseToSegment(c, a, b)) return true;
+        if (isPointTooCloseToSegment(d, a, b)) return true;
+        if (isPointTooCloseToSegment(a, c, d)) return true;
+        if (isPointTooCloseToSegment(b, c, d)) return true;
+
+        return false;
+    }
+
+    // Nowa metoda sprawdzająca, czy punkt jest za blisko odcinka
+    private boolean isPointTooCloseToSegment(Node p, Node a, Node b) {
+        // Jeśli p jest końcem odcinka ab, to jest OK (wspólny wierzchołek)
+        if (isSamePos(p, a) || isSamePos(p, b)) return false;
+
+        // Obliczamy odległość punktu p od odcinka ab
+        double dist = Line2D.ptSegDist(a.getX(), a.getY(), b.getX(), b.getY(), p.getX(), p.getY());
+        
+        // Margines bezpieczeństwa: jeśli punkt jest bliżej linii niż 0.1 jednostki, 
+        // uznajemy to za nakładanie/kolizję
+        return dist < 0.1; 
+    }
+
+    private boolean isSamePos(Node n1, Node n2) {
+        return Math.abs(n1.getX() - n2.getX()) < 1e-9 && 
+               Math.abs(n1.getY() - n2.getY()) < 1e-9;
+    }
+
+    private int relativeOrientation(Node p, Node q, Node r) {
+        double val = (q.getY() - p.getY()) * (r.getX() - q.getX()) -
+                     (q.getX() - p.getX()) * (r.getY() - q.getY());
+        if (Math.abs(val) < 1e-9) return 0; // współliniowe
+        return (val > 0) ? 1 : 2; // 1-zegar, 2-przeciwzegar
+    }
+
+    // --- POZOSTAŁE METODY POMOCNICZE ---
 
     // Ta metoda znów nazywa się bezpiecznie
     private double[] calculateGraphBounds() {
