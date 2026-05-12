@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Line2D; // Ważne do detekcji linii
 
 public class GraphPanel extends JPanel {
     private Graph graph;
@@ -15,26 +16,51 @@ public class GraphPanel extends JPanel {
 
     // Przesuwanie wierzchołków
     private Node draggedNode = null; 
+    private Edge draggedEdge = null; // Przechowuje wybraną krawędź
+    private Point lastMousePoint = null; // Zapamiętuje poprzednią pozycję myszy
 
     public GraphPanel() {
         MouseAdapter ma = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (graph == null) return;
+                lastMousePoint = e.getPoint(); // Zapisujemy start
 
                 // Obliczamy skalę tak samo jak w paintComponent
                 double[] bounds = calculateGraphBounds();
                 double scale = calculateScale(bounds);
                 int centerX = getWidth() / 2;
                 int centerY = getHeight() / 2;
+                double midX = (bounds[0] + bounds[1]) / 2;
+                double midY = (bounds[2] + bounds[3]) / 2;
 
+                // 1. Najpierw sprawdzamy wierzchołki (priorytet)
+                draggedNode = null;
                 for (Node node : graph.getNodes().values()) {
                     int nx = (int) ((node.getX() - (bounds[0] + bounds[1])/2) * scale) + centerX;
                     int ny = (int) ((node.getY() - (bounds[2] + bounds[3])/2) * scale) + centerY;
 
                     if (Math.hypot(e.getX() - nx, e.getY() - ny) < nodeSize) {
                         draggedNode = node;
-                        break;
+                        return; // Jeśli złapaliśmy wierzchołek, nie szukamy krawędzi
+                    }
+                }
+                // 2. Jeśli nie złapano wierzchołka, sprawdzamy krawędzie
+                draggedEdge = null;
+                for (Edge edge : graph.getEdges()) {
+                    Node n1 = graph.getNodes().get(edge.getUId());
+                    Node n2 = graph.getNodes().get(edge.getVId());
+                    if (n1 != null && n2 != null) {
+                        int x1 = (int) ((n1.getX() - midX) * scale) + centerX;
+                        int y1 = (int) ((n1.getY() - midY) * scale) + centerY;
+                        int x2 = (int) ((n2.getX() - midX) * scale) + centerX;
+                        int y2 = (int) ((n2.getY() - midY) * scale) + centerY;
+
+                        // Sprawdzamy czy mysz jest blisko linii (margines 5 pikseli)
+                        if (Line2D.ptSegDist(x1, y1, x2, y2, e.getX(), e.getY()) < 5) {
+                            draggedEdge = edge;
+                            break;
+                        }
                     }
                 }
             }
@@ -42,24 +68,41 @@ public class GraphPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 draggedNode = null;
+                draggedEdge = null;
+                lastMousePoint = null;
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if (graph == null || lastMousePoint == null) return;
+
+                double[] bounds = calculateGraphBounds();
+                double scale = calculateScale(bounds);
+
+                // Obliczamy o ile przesunęła się mysz w jednostkach grafu
+                double dx = (e.getX() - lastMousePoint.x) / scale;
+                double dy = (e.getY() - lastMousePoint.y) / scale;
+
+                // PRZESUWANIE WIERZCHOŁKA
                 if (draggedNode != null) {
-                    double[] bounds = calculateGraphBounds();
-                    double scale = calculateScale(bounds);
-                    int centerX = getWidth() / 2;
-                    int centerY = getHeight() / 2;
-
-                    // Przeliczamy pozycję myszy na współrzędne grafu
-                    double newX = (e.getX() - centerX) / scale + (bounds[0] + bounds[1]) / 2;
-                    double newY = (e.getY() - centerY) / scale + (bounds[2] + bounds[3]) / 2;
-
-                    draggedNode.setX(newX);
-                    draggedNode.setY(newY);
-                    repaint();
+                    draggedNode.setX(draggedNode.getX() + dx);
+                    draggedNode.setY(draggedNode.getY() + dy);
+                } 
+                // PRZESUWANIE KRAWĘDZI (Ruch dwóch wierzchołków naraz)
+                else if (draggedEdge != null) {
+                    Node n1 = graph.getNodes().get(draggedEdge.getUId());
+                    Node n2 = graph.getNodes().get(draggedEdge.getVId());
+                    
+                    if (n1 != null && n2 != null) {
+                        n1.setX(n1.getX() + dx);
+                        n1.setY(n1.getY() + dy);
+                        n2.setX(n2.getX() + dx);
+                        n2.setY(n2.getY() + dy);
+                    }
                 }
+
+                lastMousePoint = e.getPoint(); // Aktualizujemy punkt odniesienia
+                repaint();
             }
         };
         addMouseListener(ma);
