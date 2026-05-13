@@ -263,59 +263,107 @@ public class GraphPanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g); 
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+    // Nie używamy super.paintComponent(g), bo sami rysujemy tło z gradientem
+    Graphics2D g2 = (Graphics2D) g;
+    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        if (graph == null || graph.getNodes().isEmpty()) return;
+    // --- 1. GRADIENTOWE TŁO ---
+    float[] dist = {0.0f, 1.0f};
+    Color[] colors = { backgroundColor.brighter(), backgroundColor };
+    RadialGradientPaint rgp = new RadialGradientPaint(
+        new Point(getWidth() / 2, getHeight() / 2), 
+        getWidth(), dist, colors);
+    g2.setPaint(rgp);
+    g2.fillRect(0, 0, getWidth(), getHeight());
 
-        double[] b = calculateGraphBounds();
-        double scale = calculateScale(b);
-        int centerX = getWidth() / 2, centerY = getHeight() / 2;
-        double midX = (b[0] + b[1]) / 2, midY = (b[2] + b[3]) / 2;
+    // --- 2. DYNAMICZNA SIATKA (GRID) ---
+    // Siatka przesuwa się i skaluje razem z grafem
+    g2.setStroke(new BasicStroke(1));
+    g2.setColor(new Color(255, 255, 255, 15)); // Bardzo delikatny biały
+    
+    double gridSize = 50 * zoomFactor; // Rozmiar kratki zależy od zoomu
+    if (gridSize < 10) gridSize = 10;   // Żeby nie było za gęsto
 
-        // 1. Krawędzie
-        for (Edge edge : graph.getEdges()) {
-            Node n1 = graph.getNodes().get(edge.getUId());
-            Node n2 = graph.getNodes().get(edge.getVId());
-            if (n1 != null && n2 != null) {
-                int x1 = (int) ((n1.getX() - midX) * scale) + centerX + (int)offsetX;
-                int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
-                int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
-                int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
-                g2.setColor((hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId())) ? highlightColor : edgeColor);
-                g2.setStroke(new BasicStroke(edgeThickness));
-                g2.drawLine(x1, y1, x2, y2);
-            }
+    // Obliczamy startowe pozycje linii, uwzględniając offset
+    double startX = (offsetX % gridSize);
+    double startY = (offsetY % gridSize);
+
+    for (double x = startX; x < getWidth(); x += gridSize) {
+        g2.drawLine((int)x, 0, (int)x, getHeight());
+    }
+    for (double y = startY; y < getHeight(); y += gridSize) {
+        g2.drawLine(0, (int)y, getWidth(), (int)y);
+    }
+
+    if (graph == null || graph.getNodes().isEmpty()) return;
+
+    // --- OBLICZENIA WSPÓŁRZĘDNYCH ---
+    double[] b = calculateGraphBounds();
+    double scale = calculateScale(b);
+    int centerX = getWidth() / 2, centerY = getHeight() / 2;
+    double midX = (b[0] + b[1]) / 2, midY = (b[2] + b[3]) / 2;
+
+    // --- 3. ŚWIECĄCE KRAWĘDZIE (GLOW) ---
+    for (Edge edge : graph.getEdges()) {
+        Node n1 = graph.getNodes().get(edge.getUId());
+        Node n2 = graph.getNodes().get(edge.getVId());
+        if (n1 != null && n2 != null) {
+            int x1 = (int) ((n1.getX() - midX) * scale) + centerX + (int)offsetX;
+            int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
+            int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
+            int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
+
+            boolean isHovered = (hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId()));
+            Color baseColor = isHovered ? highlightColor : edgeColor;
+
+            // Efekt Glow (Poświata)
+            g2.setColor(new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 40));
+            g2.setStroke(new BasicStroke(edgeThickness * 3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawLine(x1, y1, x2, y2);
+
+            // Linia właściwa
+            g2.setColor(baseColor);
+            g2.setStroke(new BasicStroke(edgeThickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawLine(x1, y1, x2, y2);
         }
+    }
 
-        // 2. Wierzchołki
-        for (Node node : graph.getNodes().values()) {
-            int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
-            int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
-            g2.setColor((hoveredNode != null && hoveredNode.getId() == node.getId()) ? highlightColor : nodeColor);
-            g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
-            g2.setColor(textColor);
-            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 2, y);
-        }
+    // --- 4. WIERZCHOŁKI ---
+    for (Node node : graph.getNodes().values()) {
+        int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
+        int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
+        
+        // Dodajmy lekki glow też do wierzchołków
+        g2.setColor(new Color(nodeColor.getRed(), nodeColor.getGreen(), nodeColor.getBlue(), 60));
+        g2.fillOval(x - (nodeSize+8)/2, y - (nodeSize+8)/2, nodeSize+8, nodeSize+8);
+        
+        g2.setColor((hoveredNode != null && hoveredNode.getId() == node.getId()) ? highlightColor : nodeColor);
+        g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
+        
+        g2.setColor(textColor);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 4, y + 4);
+    }
 
-        // 3. IMPULSY
-        synchronized(activePulses) {
-            for (ActivePulse p : activePulses) {
-                Node nEnd = graph.getNodes().get(p.targetNodeId);
-                if (p.startNode != null && nEnd != null) {
-                    int x1 = (int) ((p.startNode.getX() - midX) * scale) + centerX + (int)offsetX;
-                    int y1 = (int) ((p.startNode.getY() - midY) * scale) + centerY + (int)offsetY;
-                    int x2 = (int) ((nEnd.getX() - midX) * scale) + centerX + (int)offsetX;
-                    int y2 = (int) ((nEnd.getY() - midY) * scale) + centerY + (int)offsetY;
-                    int px = (int) (x1 + (x2 - x1) * p.pos);
-                    int py = (int) (y1 + (y2 - y1) * p.pos);
-                    g2.setColor(new Color(255, 235, 59, 180));
-                    g2.fillOval(px - 10, py - 10, 20, 20);
-                    g2.setColor(Color.YELLOW);
-                    g2.fillOval(px - 6, py - 6, 12, 12);
-                }
+    // --- 5. IMPULSY KASKADOWE (Twój istniejący kod) ---
+    synchronized(activePulses) {
+        for (ActivePulse p : activePulses) {
+            Node nEnd = graph.getNodes().get(p.targetNodeId);
+            if (p.startNode != null && nEnd != null) {
+                int x1 = (int) ((p.startNode.getX() - midX) * scale) + centerX + (int)offsetX;
+                int y1 = (int) ((p.startNode.getY() - midY) * scale) + centerY + (int)offsetY;
+                int x2 = (int) ((nEnd.getX() - midX) * scale) + centerX + (int)offsetX;
+                int y2 = (int) ((nEnd.getY() - midY) * scale) + centerY + (int)offsetY;
+                int px = (int) (x1 + (x2 - x1) * p.pos);
+                int py = (int) (y1 + (y2 - y1) * p.pos);
+                
+                // Super mocny glow impulsu
+                g2.setColor(new Color(255, 255, 0, 100));
+                g2.fillOval(px - 15, py - 15, 30, 30);
+                g2.setColor(Color.YELLOW);
+                g2.fillOval(px - 6, py - 6, 12, 12);
             }
         }
     }
+}
 }
