@@ -8,8 +8,10 @@ import java.util.Map;
 
 public class GraphPanel extends JPanel {
     private Graph graph;
-    
-    // --- DYNAMICZNE KOLORY (ZALEŻNE OD TRYBU) ---
+    private Timer pathTimer;
+    private float pulsePos = 0; // Pozycja impulsu (0.0 do 1.0)
+    private Edge activeEdge;    // Krawędź, po której biegnie impuls
+        // --- DYNAMICZNE KOLORY (ZALEŻNE OD TRYBU) ---
     private Color backgroundColor = new Color(30, 30, 30); 
     private Color nodeColor = new Color(0, 188, 212);     
     private Color edgeColor = new Color(120, 120, 120);   
