@@ -29,14 +29,15 @@ public class GraphPanel extends JPanel {
     }
 
     // --- KOLORY I PARAMETRY ---
-    private Color backgroundColor = new Color(30, 30, 30); 
+    private Color backgroundColor = new Color(20, 20, 25); // Jeszcze głębszy granat/czerń
     private Color nodeColor = new Color(0, 188, 212);     
-    private Color edgeColor = new Color(120, 120, 120);   
+    private Color edgeColor = new Color(70, 70, 80);   
     private Color textColor = Color.WHITE;                
-    private Color highlightColor = new Color(255, 235, 59); 
+    // Zmieniamy na Neon Cyan dla lepszego efektu 3D
+    private Color highlightColor = new Color(0, 255, 255); 
     
     private Node hoveredNode = null; 
-    private int nodeSize = 16;
+    private int nodeSize = 18;
     private int edgeThickness = 3;
     private double zoomFactor = 1.0;
 
@@ -186,17 +187,17 @@ public class GraphPanel extends JPanel {
 
     public void setTheme(boolean isDark) {
         if (isDark) {
-            backgroundColor = new Color(30, 30, 30);
+            backgroundColor = new Color(20, 20, 25);
             nodeColor = new Color(0, 188, 212);
-            edgeColor = new Color(120, 120, 120);
+            edgeColor = new Color(70, 70, 80);
             textColor = Color.WHITE;
-            highlightColor = new Color(255, 235, 59);
+            highlightColor = new Color(0, 255, 255);
         } else {
-            backgroundColor = Color.WHITE;
-            nodeColor = Color.BLACK;
-            edgeColor = Color.DARK_GRAY;
+            backgroundColor = new Color(245, 245, 250);
+            nodeColor = new Color(40, 40, 60);
+            edgeColor = new Color(180, 180, 190);
             textColor = Color.BLACK;
-            highlightColor = new Color(255, 100, 0); 
+            highlightColor = new Color(0, 120, 215); 
         }
         setBackground(backgroundColor);
         repaint();
@@ -256,21 +257,25 @@ public class GraphPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
+        
+        // --- WYMUSZENIE WYSOKIEJ JAKOŚCI ---
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        // --- 1. TŁO GRADIENTOWE ---
-        float[] dist = {0.0f, 1.0f};
-        Color[] colors = { backgroundColor.brighter(), backgroundColor };
+        // --- 1. TŁO GRADIENTOWE (GŁĘBIA 3D) ---
+        float[] dist = {0.0f, 0.8f, 1.0f};
+        Color[] colors = { backgroundColor.brighter(), backgroundColor, backgroundColor.darker() };
         RadialGradientPaint rgp = new RadialGradientPaint(
             new Point(getWidth() / 2, getHeight() / 2), 
-            getWidth(), dist, colors);
+            (float)(getWidth() * 1.2), dist, colors);
         g2.setPaint(rgp);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        // --- 2. DYNAMICZNA SIATKA (GRID) ---
+        // --- 2. DYNAMICZNA SIATKA (PERSPEKTYWA) ---
         g2.setStroke(new BasicStroke(1));
-        g2.setColor(new Color(255, 255, 255, 15)); 
-        double gridSize = 50 * zoomFactor;
+        g2.setColor(new Color(255, 255, 255, 10)); 
+        double gridSize = 60 * zoomFactor;
         if (gridSize < 15) gridSize = 15;
         double startX = (offsetX % gridSize);
         double startY = (offsetY % gridSize);
@@ -284,7 +289,7 @@ public class GraphPanel extends JPanel {
         int centerX = getWidth() / 2, centerY = getHeight() / 2;
         double midX = (b[0] + b[1]) / 2, midY = (b[2] + b[3]) / 2;
 
-        // --- 3. KRAWĘDZIE Z EFEKTEM NEONU ---
+        // --- 3. KRAWĘDZIE (WARSTWOWY NEON) ---
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
@@ -297,30 +302,73 @@ public class GraphPanel extends JPanel {
                 boolean isHovered = (hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId()));
                 Color baseColor = isHovered ? highlightColor : edgeColor;
 
-                // Glow
-                g2.setColor(new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 40));
-                g2.setStroke(new BasicStroke(edgeThickness * 3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                // CIEŃ KRAWĘDZI (EFEKT UNIESIENIA)
+                g2.setColor(new Color(0,0,0, 60));
+                g2.setStroke(new BasicStroke(edgeThickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.drawLine(x1+3, y1+3, x2+3, y2+3);
+
+                // GLOW (POŚWIATA)
+                int glowAlpha = isHovered ? 70 : 30;
+                g2.setColor(new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), glowAlpha));
+                g2.setStroke(new BasicStroke(edgeThickness * 4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2.drawLine(x1, y1, x2, y2);
-                // Linia
+                
+                // LINIA WŁAŚCIWA
                 g2.setColor(baseColor);
                 g2.setStroke(new BasicStroke(edgeThickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2.drawLine(x1, y1, x2, y2);
             }
         }
 
-        // --- 4. WIERZCHOŁKI ---
+        // --- 4. WIERZCHOŁKI (GŁĘBIA I PULSOWANIE) ---
         for (Node node : graph.getNodes().values()) {
             int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
             int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
-            g2.setColor(new Color(nodeColor.getRed(), nodeColor.getGreen(), nodeColor.getBlue(), 60));
-            g2.fillOval(x - (nodeSize+8)/2, y - (nodeSize+8)/2, nodeSize+8, nodeSize+8);
-            g2.setColor((hoveredNode != null && hoveredNode.getId() == node.getId()) ? highlightColor : nodeColor);
+            
+            boolean isHovered = (hoveredNode != null && hoveredNode.getId() == node.getId());
+
+            // WIELOWARSTWOWY CIEŃ 3D
+            g2.setColor(new Color(0, 0, 0, 120));
+            g2.fillOval(x - nodeSize/2 + 4, y - nodeSize/2 + 4, nodeSize, nodeSize);
+            g2.setColor(new Color(0, 0, 0, 60));
+            g2.fillOval(x - nodeSize/2 + 2, y - nodeSize/2 + 2, nodeSize, nodeSize);
+
+            // PULSOWANIE I BLOOM
+            if (isHovered) {
+                float pulse = (float)(Math.sin(System.currentTimeMillis() * 0.008) * 12 + 15);
+                // Główny neonowy bloom
+                g2.setColor(new Color(highlightColor.getRed(), highlightColor.getGreen(), highlightColor.getBlue(), 80));
+                g2.fillOval((int)(x - (nodeSize+pulse)/2), (int)(y - (nodeSize+pulse)/2), (int)(nodeSize+pulse), (int)(nodeSize+pulse));
+                // Zewnętrzny pierścień świetlny
+                g2.setColor(new Color(255, 255, 255, 120));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawOval((int)(x - (nodeSize+pulse)/2), (int)(y - (nodeSize+pulse)/2), (int)(nodeSize+pulse), (int)(nodeSize+pulse));
+            } else {
+                // Stała aura dla nieaktywnych
+                g2.setColor(new Color(nodeColor.getRed(), nodeColor.getGreen(), nodeColor.getBlue(), 50));
+                g2.fillOval(x - (nodeSize+10)/2, y - (nodeSize+10)/2, nodeSize+10, nodeSize+10);
+            }
+
+            // RDZEŃ WIERZCHOŁKA (GRADIENTOWY DLA EFEKTU KULI)
+            GradientPaint gp = new GradientPaint(x-5, y-5, isHovered ? highlightColor.brighter() : nodeColor.brighter(), 
+                                                 x+5, y+5, isHovered ? highlightColor : nodeColor);
+            g2.setPaint(gp);
             g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
+
+            // PODŚWIETLENIE KRAWĘDZI RDZENIA (EFEKT SZKŁA)
+            g2.setColor(new Color(255, 255, 255, 100));
+            g2.setStroke(new BasicStroke(1));
+            g2.drawOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
+
+            // ETYKIETA (Z CIENIEM DLA CZYTELNOŚCI)
+            g2.setFont(new Font("SansSerif", Font.BOLD, 13));
+            g2.setColor(Color.BLACK);
+            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 6, y + 6); // Cień tekstu
             g2.setColor(textColor);
-            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 4, y + 4);
+            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 5, y + 5);
         }
 
-        // --- 5. IMPULSY ---
+        // --- 5. IMPULSY KASKADOWE (ENERGETYCZNE WYŁADOWANIA) ---
         synchronized(activePulses) {
             for (ActivePulse p : activePulses) {
                 Node nEnd = graph.getNodes().get(p.targetNodeId);
@@ -331,12 +379,25 @@ public class GraphPanel extends JPanel {
                     int y2 = (int) ((nEnd.getY() - midY) * scale) + centerY + (int)offsetY;
                     int px = (int) (x1 + (x2 - x1) * p.pos);
                     int py = (int) (y1 + (y2 - y1) * p.pos);
-                    g2.setColor(new Color(255, 235, 59, 180));
-                    g2.fillOval(px - 12, py - 12, 24, 24);
-                    g2.setColor(Color.YELLOW);
+                    
+                    // GŁÓWNA ENERGIA (CYAN/WHITE)
+                    g2.setColor(new Color(0, 255, 255, 150));
+                    g2.fillOval(px - 14, py - 14, 28, 28);
+                    
+                    // RDZEŃ ISKRY
+                    g2.setColor(Color.WHITE);
                     g2.fillOval(px - 6, py - 6, 12, 12);
+                    
+                    // PROMIEŃ ŚWIETLNY
+                    g2.setStroke(new BasicStroke(1));
+                    g2.setColor(new Color(255, 255, 255, 200));
+                    g2.drawLine(px-15, py, px+15, py);
+                    g2.drawLine(px, py-15, px, py+15);
                 }
             }
         }
+        
+        // Zawsze odświeżaj, by pulsowanie było idealnie płynne
+        repaint();
     }
 }
