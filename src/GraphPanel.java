@@ -32,7 +32,7 @@ public class GraphPanel extends JPanel {
     private double offsetY = 0; 
 
     private Map<Integer, Point.Double> originalPositions = new HashMap<>();
-
+    
     public GraphPanel() {
         // Ustawienie początkowego tła
         setBackground(backgroundColor);
@@ -162,7 +162,27 @@ public class GraphPanel extends JPanel {
         addMouseListener(ma);
         addMouseMotionListener(ma);
     }
+    public void animateEdge(Edge edge) {
+    this.activeEdge = edge;
+    this.pulsePos = 0;
 
+    // Jeśli poprzednia animacja jeszcze trwa, zatrzymujemy ją
+    if (pathTimer != null && pathTimer.isRunning()) {
+        pathTimer.stop();
+    }
+
+    // Tworzymy timer: 20ms to około 50 klatek na sekundę
+    pathTimer = new javax.swing.Timer(20, e -> {
+        pulsePos += 0.015f; // Prędkość impulsu (zmień na większą, by było szybciej)
+        
+        if (pulsePos > 1.0f) {
+            pulsePos = 0; // Zapętlamy animację
+        }
+        repaint(); // Przerysowujemy panel, by kropka się ruszyła
+    });
+    
+    pathTimer.start();
+}
     // --- NOWA METODA: PRZEŁĄCZANIE MOTYWU ---
     public void setTheme(boolean isDark) {
         if (isDark) {

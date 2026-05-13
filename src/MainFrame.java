@@ -27,7 +27,16 @@ public class MainFrame extends JFrame {
         sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
         sidePanel.setPreferredSize(new Dimension(300, 0));
-
+        JButton btnAnimate = new JButton("Animuj impuls");
+            btnAnimate.addActionListener(e -> {
+                Graph g = graphPanel.getGraph();
+                if (g != null && !g.getEdges().isEmpty()) {
+                    // Wybieramy pierwszą lepszą krawędź do testu
+                    graphPanel.animateEdge(g.getEdges().get(0));
+                }
+            });
+            sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
+            sidePanel.add(btnAnimate);
         JCheckBox chkDarkMode = new JCheckBox("Tryb Ciemny", true);
         chkDarkMode.setFocusPainted(false);
         chkDarkMode.addActionListener(e -> applyGlobalTheme(chkDarkMode.isSelected()));
