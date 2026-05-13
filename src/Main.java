@@ -4,15 +4,30 @@ import java.io.File;
 
 public class Main {
     public static void main(String[] args) {
-        // 1. Wygląd "CROSS-PLATFORM"
+        // 1. Ustawienie stabilnego wyglądu (Nimbus zamiast niedziałającego FlatLaf)
         try {
-            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
         } catch (Exception e) {
-            System.err.println("Nie udało się ustawić stylu LookAndFeel");
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
 
-        // 2. Zwiększenie czcionki
-        Font bigFont = new Font("SansSerif", Font.BOLD, 24);
+        // 2. Globalne ustawienia UI (Zaokrąglenia i Scrollbary)
+        UIManager.put("Button.arc", 15);      
+        UIManager.put("Component.arc", 15);   
+        UIManager.put("ScrollBar.showButtons", true);
+        UIManager.put("ScrollBar.width", 12);
+
+        // 3. Zwiększenie czcionki (Twoja oryginalna logika)
+        Font bigFont = new Font("SansSerif", Font.BOLD, 22); // Nieco mniejsza niż 24, by zmieściła się w przyciskach
         java.util.Enumeration<Object> keys = UIManager.getDefaults().keys();
         while (keys.hasMoreElements()) {
             Object key = keys.nextElement();
@@ -21,7 +36,7 @@ public class Main {
             }
         }
 
-        // 3. NOWE: Wybór między plikiem tekstowym a binarnym na starcie
+        // 4. Wybór typu pliku na starcie
         Object[] options = {"Plik Tekstowy (.txt)", "Plik Binarny (.bin)"};
         int choice = JOptionPane.showOptionDialog(null, 
                 "Jaki typ pliku chcesz wczytać na starcie?", 
@@ -30,22 +45,18 @@ public class Main {
                 JOptionPane.QUESTION_MESSAGE, 
                 null, options, options[0]);
 
-        // Jeśli użytkownik zamknie okno wyboru typu - kończymy
         if (choice == JOptionPane.CLOSED_OPTION) System.exit(0);
 
-        // 4. Okno wyboru pliku
+        // 5. Okno wyboru pliku
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Wybierz plik z danymi grafu");
-        fileChooser.setPreferredSize(new Dimension(1200, 800));
+        fileChooser.setPreferredSize(new Dimension(1000, 700));
         fileChooser.updateUI();
 
-        int result = fileChooser.showOpenDialog(null);
-
-        if (result == JFileChooser.APPROVE_OPTION) {
+        if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
 
-            // 5. Wybór odpowiedniego loadera na podstawie wcześniejszej decyzji
-
+            // Wybór loadera
             LoaderInterface loader = (choice == 0) ? new TextLoader() : new BinaryLoader();
             Graph graph = loader.load(selectedFile.getAbsolutePath());
 
@@ -55,13 +66,11 @@ public class Main {
                 // Otwieramy okno i przekazujemy graf
                 SwingUtilities.invokeLater(() -> {
                     MainFrame frame = new MainFrame();
-                    // Musisz upewnić się, że MainFrame ma metodę, żeby przyjąć ten graf!
-                    // Jeśli Nella zrobiła setGraph w GraphPanel, to robimy tak:
                     frame.getGraphPanel().setGraph(graph); 
                     frame.setVisible(true);
                 });
             } else {
-                JOptionPane.showMessageDialog(null, "Błąd: Nie udało się wczytać grafu lub plik jest pusty.");
+                JOptionPane.showMessageDialog(null, "Błąd: Nie udało się wczytać grafu.");
                 System.exit(1);
             }
         } else {

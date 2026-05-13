@@ -2,38 +2,48 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Line2D; // Ważne do detekcji linii
+import java.awt.geom.Line2D;
 import java.util.HashMap;
 import java.util.Map;
 
 public class GraphPanel extends JPanel {
     private Graph graph;
     
-    // Ustawienia wyglądu
-    private Color nodeColor = Color.BLACK;
-    private Color edgeColor = Color.DARK_GRAY;
+    // --- NOWE: USTAWIENIA KOLORÓW DARK MODE ---
+    private Color backgroundColor = new Color(30, 30, 30); // Ciemne tło
+    private Color nodeColor = new Color(0, 188, 212);     // Neonowy błękit
+    private Color edgeColor = new Color(120, 120, 120);   // Szare krawędzie
+    private Color textColor = Color.WHITE;                // Napisy ID
+    private Color highlightColor = new Color(255, 235, 59); // Żółty dla podświetlenia
+    
+    // --- NOWE: ZMIENNA DO PODŚWIETLANIA ---
+    private Node hoveredNode = null; // Wierzchołek nad którym jest myszka
+
     private int nodeSize = 16;
     private int edgeThickness = 3;
     private double zoomFactor = 1.0;
 
-    // Przesuwanie wierzchołków
     private Node draggedNode = null; 
-    private Edge draggedEdge = null; // Przechowuje wybraną krawędź
-    private Point lastMousePoint = null; // Zapamiętuje poprzednią pozycję myszy
-    private double offsetX = 0; // Przesunięcie widoku X
-    private double offsetY = 0; // Przesunięcie widoku Y
+    private Edge draggedEdge = null; 
+    private Point lastMousePoint = null; 
+    private double offsetX = 0; 
+    private double offsetY = 0; 
 
-    // Pamięć początkowego układu
     private Map<Integer, Point.Double> originalPositions = new HashMap<>();
 
     public GraphPanel() {
+        // Ustawienie tła panelu na ciemne
+        setBackground(backgroundColor);
+
         MouseAdapter ma = new MouseAdapter() {
             @Override
-            public void mousePressed(MouseEvent e) {
+            public void mouseMoved(MouseEvent e) {
+                // --- FUNKCJA 1: HIGHLIGHTING (PODŚWIETLANIE) ---
                 if (graph == null) return;
-                lastMousePoint = e.getPoint(); // Zapisujemy start
+                
+                Node previousHover = hoveredNode;
+                hoveredNode = null;
 
-                // Obliczamy skalę tak samo jak w paintComponent
                 double[] bounds = calculateGraphBounds();
                 double scale = calculateScale(bounds);
                 int centerX = getWidth() / 2;
@@ -41,7 +51,34 @@ public class GraphPanel extends JPanel {
                 double midX = (bounds[0] + bounds[1]) / 2;
                 double midY = (bounds[2] + bounds[3]) / 2;
 
-                // 1. Najpierw sprawdzamy wierzchołki (priorytet)
+                for (Node node : graph.getNodes().values()) {
+                    int nx = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
+                    int ny = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
+
+                    if (Math.hypot(e.getX() - nx, e.getY() - ny) < nodeSize) {
+                        hoveredNode = node;
+                        break;
+                    }
+                }
+
+                // Odświeżamy tylko jeśli zmienił się stan podświetlenia
+                if (previousHover != hoveredNode) {
+                    repaint();
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (graph == null) return;
+                lastMousePoint = e.getPoint();
+
+                double[] bounds = calculateGraphBounds();
+                double scale = calculateScale(bounds);
+                int centerX = getWidth() / 2;
+                int centerY = getHeight() / 2;
+                double midX = (bounds[0] + bounds[1]) / 2;
+                double midY = (bounds[2] + bounds[3]) / 2;
+
                 draggedNode = null;
                 for (Node node : graph.getNodes().values()) {
                     int nx = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
@@ -49,10 +86,10 @@ public class GraphPanel extends JPanel {
 
                     if (Math.hypot(e.getX() - nx, e.getY() - ny) < nodeSize) {
                         draggedNode = node;
-                        return; // Jeśli złapaliśmy wierzchołek, nie szukamy krawędzi
+                        return;
                     }
                 }
-                // 2. Jeśli nie złapano wierzchołka, sprawdzamy krawędzie
+
                 draggedEdge = null;
                 for (Edge edge : graph.getEdges()) {
                     Node n1 = graph.getNodes().get(edge.getUId());
@@ -63,7 +100,6 @@ public class GraphPanel extends JPanel {
                         int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
                         int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
 
-                        // Sprawdzamy czy mysz jest blisko linii (margines 5 pikseli)
                         if (Line2D.ptSegDist(x1, y1, x2, y2, e.getX(), e.getY()) < 5) {
                             draggedEdge = edge;
                             break;
@@ -83,31 +119,22 @@ public class GraphPanel extends JPanel {
             public void mouseDragged(MouseEvent e) {
                 if (graph == null || lastMousePoint == null) return;
 
-                // PRZESUWANIE EKRANU (TŁA)
                 if (draggedNode == null && draggedEdge == null) {
                     offsetX += (e.getX() - lastMousePoint.x);
                     offsetY += (e.getY() - lastMousePoint.y);
                 } 
-                // PRZESUWANIE OBIEKTÓW
                 else {
-
                     double[] bounds = calculateGraphBounds();
                     double scale = calculateScale(bounds);
 
-                    // Obliczamy o ile przesunęła się mysz w jednostkach grafu
                     double dx = (e.getX() - lastMousePoint.x) / scale;
                     double dy = (e.getY() - lastMousePoint.y) / scale;
 
-                    // PRZESUWANIE WIERZCHOŁKA
                     if (draggedNode != null) {
                         double oldX = draggedNode.getX();
                         double oldY = draggedNode.getY();
-                        
-                        // Próba ruchu
                         draggedNode.setX(oldX + dx);
                         draggedNode.setY(oldY + dy);
-                        
-                        // Walidacja - jeśli ruch psuje planarność, cofamy go
                         if (!isGraphPlanar()) {
                             draggedNode.setX(oldX);
                             draggedNode.setY(oldY);
@@ -116,16 +143,11 @@ public class GraphPanel extends JPanel {
                     else if (draggedEdge != null) {
                         Node n1 = graph.getNodes().get(draggedEdge.getUId());
                         Node n2 = graph.getNodes().get(draggedEdge.getVId());
-                        
                         if (n1 != null && n2 != null) {
                             double oldX1 = n1.getX(), oldY1 = n1.getY();
                             double oldX2 = n2.getX(), oldY2 = n2.getY();
-                            
-                            // Próba ruchu obu wierzchołków
                             n1.setX(oldX1 + dx); n1.setY(oldY1 + dy);
                             n2.setX(oldX2 + dx); n2.setY(oldY2 + dy);
-                            
-                            // Walidacja
                             if (!isGraphPlanar()) {
                                 n1.setX(oldX1); n1.setY(oldY1);
                                 n2.setX(oldX2); n2.setY(oldY2);
@@ -133,19 +155,17 @@ public class GraphPanel extends JPanel {
                         }
                     }
                 }
-
-                lastMousePoint = e.getPoint(); // Aktualizujemy punkt odniesienia
+                lastMousePoint = e.getPoint();
                 repaint();
             }
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
+        addMouseMotionListener(ma); // Dodane dla mouseMoved
     }
 
-    // --- PRZYWRACANIE UKŁADU ---
     public void resetLayout() {
         if (graph == null || originalPositions.isEmpty()) return;
-        
         for (Node node : graph.getNodes().values()) {
             Point.Double pos = originalPositions.get(node.getId());
             if (pos != null) {
@@ -153,31 +173,24 @@ public class GraphPanel extends JPanel {
                 node.setY(pos.y);
             }
         }
-        this.zoomFactor = 1.0; // reset zoomu
-        this.offsetX = 0; // Reset przesunięcia ekranu
+        this.zoomFactor = 1.0;
+        this.offsetX = 0;
         this.offsetY = 0;
         repaint();
     }
 
-    // --- LOGIKA WALIDACJI PLANARNOŚCI ---
-
     private boolean isGraphPlanar() {
         java.util.List<Edge> edges = graph.getEdges();
         int size = edges.size();
-        
         for (int i = 0; i < size; i++) {
             for (int j = i + 1; j < size; j++) {
                 Edge e1 = edges.get(i);
                 Edge e2 = edges.get(j);
-                
                 Node a = graph.getNodes().get(e1.getUId());
                 Node b = graph.getNodes().get(e1.getVId());
                 Node c = graph.getNodes().get(e2.getUId());
                 Node d = graph.getNodes().get(e2.getVId());
-                
                 if (a == null || b == null || c == null || d == null) continue;
-
-                // Sprawdzamy czy odcinki się przecinają
                 if (intersect(a, b, c, d)) return false;
             }
         }
@@ -185,37 +198,23 @@ public class GraphPanel extends JPanel {
     }
 
     private boolean intersect(Node a, Node b, Node c, Node d) {
-        // 1. Orientacje dla testu "X"
         int o1 = relativeOrientation(a, b, c);
         int o2 = relativeOrientation(a, b, d);
         int o3 = relativeOrientation(c, d, a);
         int o4 = relativeOrientation(c, d, b);
-
-        // 2. Standardowe przecięcie (krzyżowanie się krawędzi)
         if (a != c && a != d && b != c && b != d) {
             if (o1 != o2 && o3 != o4) return true;
         }
-
-        // 3. BLOKADA NAKŁADANIA (Współliniowość i bliskość)
-        // Sprawdzamy, czy wierzchołek jednej krawędzi nie dotyka lub nie leży na drugiej krawędzi
         if (isPointTooCloseToSegment(c, a, b)) return true;
         if (isPointTooCloseToSegment(d, a, b)) return true;
         if (isPointTooCloseToSegment(a, c, d)) return true;
         if (isPointTooCloseToSegment(b, c, d)) return true;
-
         return false;
     }
 
-    // Nowa metoda sprawdzająca, czy punkt jest za blisko odcinka
     private boolean isPointTooCloseToSegment(Node p, Node a, Node b) {
-        // Jeśli p jest końcem odcinka ab, to jest OK (wspólny wierzchołek)
         if (isSamePos(p, a) || isSamePos(p, b)) return false;
-
-        // Obliczamy odległość punktu p od odcinka ab
         double dist = Line2D.ptSegDist(a.getX(), a.getY(), b.getX(), b.getY(), p.getX(), p.getY());
-        
-        // Margines bezpieczeństwa: jeśli punkt jest bliżej linii niż 0.1 jednostki, 
-        // uznajemy to za nakładanie/kolizję
         return dist < 0.1; 
     }
 
@@ -227,15 +226,12 @@ public class GraphPanel extends JPanel {
     private int relativeOrientation(Node p, Node q, Node r) {
         double val = (q.getY() - p.getY()) * (r.getX() - q.getX()) -
                      (q.getX() - p.getX()) * (r.getY() - q.getY());
-        if (Math.abs(val) < 1e-9) return 0; // współliniowe
-        return (val > 0) ? 1 : 2; // 1-zegar, 2-przeciwzegar
+        if (Math.abs(val) < 1e-9) return 0;
+        return (val > 0) ? 1 : 2;
     }
 
-    // --- POZOSTAŁE METODY POMOCNICZE ---
-
-    // Ta metoda znów nazywa się bezpiecznie
     private double[] calculateGraphBounds() {
-        double minX = -200, maxX = 200, minY = -200, maxY = 200; // Domyślne wartości
+        double minX = -200, maxX = 200, minY = -200, maxY = 200;
         if (graph != null && !graph.getNodes().isEmpty()) {
             minX = Double.MAX_VALUE; maxX = Double.MIN_VALUE;
             minY = Double.MAX_VALUE; maxY = Double.MIN_VALUE;
@@ -255,19 +251,17 @@ public class GraphPanel extends JPanel {
 
     public void setGraph(Graph graph) {
         this.graph = graph;
-        // zapisywanie początkowych pozycji
         originalPositions.clear();
         if (graph != null) {
             for (Node node : graph.getNodes().values()) {
                 originalPositions.put(node.getId(), new Point.Double(node.getX(), node.getY()));
             }
         }
-        this.offsetX = 0; // Wycentrowanie przy nowym grafie
+        this.offsetX = 0;
         this.offsetY = 0;
         repaint();
     }
 
-    // Gettery i Settery dla MainFrame
     public void setNodeColor(Color c) { this.nodeColor = c; repaint(); }
     public void setEdgeColor(Color c) { this.edgeColor = c; repaint(); }
     public void setNodeSize(int s) { this.nodeSize = s; repaint(); }
@@ -277,7 +271,10 @@ public class GraphPanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+        // --- MOJE DODATKI: tło Dark Mode ---
+        g.setColor(backgroundColor);
+        g.fillRect(0, 0, getWidth(), getHeight());
+
         if (graph == null || graph.getNodes().isEmpty()) return;
 
         Graphics2D g2 = (Graphics2D) g;
@@ -292,7 +289,6 @@ public class GraphPanel extends JPanel {
 
         // Rysowanie krawędzi
         g2.setStroke(new BasicStroke(edgeThickness));
-        g2.setColor(edgeColor);
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
@@ -301,6 +297,16 @@ public class GraphPanel extends JPanel {
                 int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
                 int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
                 int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
+
+                // --- HIGHLIGHTING KRAWĘDZI ---
+                if (hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId())) {
+                    g2.setColor(highlightColor);
+                    g2.setStroke(new BasicStroke(edgeThickness + 2));
+                } else {
+                    g2.setColor(edgeColor);
+                    g2.setStroke(new BasicStroke(edgeThickness));
+                }
+                
                 g2.drawLine(x1, y1, x2, y2);
             }
         }
@@ -309,9 +315,17 @@ public class GraphPanel extends JPanel {
         for (Node node : graph.getNodes().values()) {
             int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
             int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
-            g2.setColor(nodeColor);
-            g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
-            g2.setColor(Color.BLUE);
+            
+            // --- HIGHLIGHTING WIERZCHOŁKA ---
+            if (hoveredNode != null && hoveredNode.getId() == node.getId()) {
+                g2.setColor(highlightColor);
+                g2.fillOval(x - (nodeSize + 4)/2, y - (nodeSize + 4)/2, nodeSize + 4, nodeSize + 4);
+            } else {
+                g2.setColor(nodeColor);
+                g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
+            }
+
+            g2.setColor(textColor);
             g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 2, y);
         }
     }

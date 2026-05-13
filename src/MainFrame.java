@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 
-
 public class MainFrame extends JFrame {
     private GraphPanel graphPanel; // Panel rysujący graf
 
@@ -24,21 +23,18 @@ public class MainFrame extends JFrame {
                 graphPanel.setZoomFactor(graphPanel.getZoomFactor() / 1.1);
             }
         });
+        
         // --- OBSŁUGA ZOOM KLAWIATURĄ (CTRL + "+" / CTRL + "-") ---
+        InputMap im = graphPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap am = graphPanel.getActionMap();
 
-            // Pobieramy mapę wejść dla głównego panelu
-            InputMap im = graphPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-            ActionMap am = graphPanel.getActionMap();
+        am.put("zoomIn", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                graphPanel.setZoomFactor(graphPanel.getZoomFactor() * 1.1);
+            }
+        });
 
-            // Definicja akcji przybliżania
-            am.put("zoomIn", new AbstractAction() {
-                @Override
-                public void actionPerformed(java.awt.event.ActionEvent e) {
-                    graphPanel.setZoomFactor(graphPanel.getZoomFactor() * 1.1);
-                }
-            });
-
-            // Definicja akcji oddalania
         am.put("zoomOut", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -46,32 +42,38 @@ public class MainFrame extends JFrame {
             }
         });
 
-        // Przypisanie skrótów klawiszowych (obsługuje zwykłe klawisze i numeryczne)
-        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_EQUALS, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomIn"); // CTRL + = (czyli + bez shift)
-        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ADD, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomIn");    // CTRL + Plus na numerycznej
-        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_MINUS, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomOut"); // CTRL + -
-        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_SUBTRACT, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomOut"); // CTRL + Minus na numerycznej
+        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_EQUALS, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomIn");
+        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ADD, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomIn");
+        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_MINUS, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomOut");
+        im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_SUBTRACT, java.awt.event.InputEvent.CTRL_DOWN_MASK), "zoomOut");
+        
         add(graphPanel, BorderLayout.CENTER);
 
-        // 3. Tworzenie panelu bocznego (DODANO OPCJE WYGLĄDU)
+        // 3. Tworzenie panelu bocznego (MODYFIKACJA: DARK MODE I ESTETYKA)
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
-        sidePanel.setBorder(BorderFactory.createTitledBorder("Opcje widoku"));
         sidePanel.setPreferredSize(new Dimension(220, 0));
+        
+        // --- MOJE DODATKI: KOLORY PANELU ---
+        sidePanel.setBackground(new Color(45, 45, 45)); // Ciemne tło
+        sidePanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(Color.GRAY), "Opcje widoku", 0, 0, null, Color.WHITE));
 
         // Przycisk reset układu
         JButton btnReset = new JButton("Przywróć układ");
-        btnReset.setBackground(new Color(200, 220, 255));
+        styleButton(btnReset, new Color(70, 130, 180)); // Niebieskawy
         btnReset.addActionListener(e -> graphPanel.resetLayout());
 
         // Przyciski kolorów
         JButton btnNodeColor = new JButton("Kolor punktów");
+        styleButton(btnNodeColor, new Color(60, 60, 60));
         btnNodeColor.addActionListener(e -> {
             Color c = JColorChooser.showDialog(this, "Wybierz kolor punktów", Color.BLUE);
             if (c != null) graphPanel.setNodeColor(c);
         });
 
         JButton btnEdgeColor = new JButton("Kolor krawędzi");
+        styleButton(btnEdgeColor, new Color(60, 60, 60));
         btnEdgeColor.addActionListener(e -> {
             Color c = JColorChooser.showDialog(this, "Wybierz kolor krawędzi", Color.DARK_GRAY);
             if (c != null) graphPanel.setEdgeColor(c);
@@ -84,26 +86,26 @@ public class MainFrame extends JFrame {
         JSpinner spinThick = new JSpinner(new SpinnerNumberModel(3, 1, 10, 1));
         spinThick.addChangeListener(e -> graphPanel.setEdgeThickness((int) spinThick.getValue()));
 
-        // Dodawanie do panelu bocznego
-        sidePanel.add(new JLabel(" Kolory:"));
+        // Dodawanie elementów (z poprawionymi kolorami napisów)
+        sidePanel.add(createWhiteLabel(" Kolory:"));
         sidePanel.add(btnNodeColor);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnEdgeColor);
 
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        sidePanel.add(new JLabel(" Akcje:"));
-        sidePanel.add(btnReset); // Dodajemy przycisk resetu
+        sidePanel.add(createWhiteLabel(" Akcje:"));
+        sidePanel.add(btnReset); 
         
         sidePanel.add(Box.createRigidArea(new Dimension(0, 20)));
-        sidePanel.add(new JLabel(" Rozmiar punktów:"));
+        sidePanel.add(createWhiteLabel(" Rozmiar punktów:"));
         sidePanel.add(spinSize);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        sidePanel.add(new JLabel(" Grubość krawędzi:"));
+        sidePanel.add(createWhiteLabel(" Grubość krawędzi:"));
         sidePanel.add(spinThick);
 
         add(sidePanel, BorderLayout.EAST);
 
-        // 4. Pasek menu (bez zmian)
+        // 4. Pasek menu (bez zmian logiki)
         JMenuBar menuBar = new JMenuBar();
         JMenu menuPlik = new JMenu("Plik");
         JMenuItem itemOpenTxt = new JMenuItem("Otwórz plik tekstowy (.txt)");
@@ -116,11 +118,27 @@ public class MainFrame extends JFrame {
         setJMenuBar(menuBar);
     }
 
+    // --- METODY POMOCNICZE DO STYLIZACJI ---
+    
+    private void styleButton(JButton btn, Color bgColor) {
+        btn.setMaximumSize(new Dimension(200, 40));
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btn.setBackground(bgColor);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createRaisedBevelBorder());
+    }
+
+    private JLabel createWhiteLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(Color.WHITE);
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        return label;
+    }
+
     private void handleFileOpen(LoaderInterface loader) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setPreferredSize(new Dimension(1200, 800));
-
-        // Odświeżamy UI, aby zastosować duże czcionki z UIManager
         fileChooser.updateUI();
 
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
