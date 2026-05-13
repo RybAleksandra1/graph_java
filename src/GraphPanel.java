@@ -9,15 +9,15 @@ import java.util.Map;
 public class GraphPanel extends JPanel {
     private Graph graph;
     
-    // --- NOWE: USTAWIENIA KOLORÓW DARK MODE ---
-    private Color backgroundColor = new Color(30, 30, 30); // Ciemne tło
-    private Color nodeColor = new Color(0, 188, 212);     // Neonowy błękit
-    private Color edgeColor = new Color(120, 120, 120);   // Szare krawędzie
-    private Color textColor = Color.WHITE;                // Napisy ID
-    private Color highlightColor = new Color(255, 235, 59); // Żółty dla podświetlenia
+    // --- DYNAMICZNE KOLORY (ZALEŻNE OD TRYBU) ---
+    private Color backgroundColor = new Color(30, 30, 30); 
+    private Color nodeColor = new Color(0, 188, 212);     
+    private Color edgeColor = new Color(120, 120, 120);   
+    private Color textColor = Color.WHITE;                
+    private Color highlightColor = new Color(255, 235, 59); 
     
-    // --- NOWE: ZMIENNA DO PODŚWIETLANIA ---
-    private Node hoveredNode = null; // Wierzchołek nad którym jest myszka
+    // --- ZMIENNA DO PODŚWIETLANIA ---
+    private Node hoveredNode = null; 
 
     private int nodeSize = 16;
     private int edgeThickness = 3;
@@ -32,13 +32,12 @@ public class GraphPanel extends JPanel {
     private Map<Integer, Point.Double> originalPositions = new HashMap<>();
 
     public GraphPanel() {
-        // Ustawienie tła panelu na ciemne
+        // Ustawienie początkowego tła
         setBackground(backgroundColor);
 
         MouseAdapter ma = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                // --- FUNKCJA 1: HIGHLIGHTING (PODŚWIETLANIE) ---
                 if (graph == null) return;
                 
                 Node previousHover = hoveredNode;
@@ -61,7 +60,6 @@ public class GraphPanel extends JPanel {
                     }
                 }
 
-                // Odświeżamy tylko jeśli zmienił się stan podświetlenia
                 if (previousHover != hoveredNode) {
                     repaint();
                 }
@@ -161,7 +159,25 @@ public class GraphPanel extends JPanel {
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
-        addMouseMotionListener(ma); // Dodane dla mouseMoved
+    }
+
+    // --- NOWA METODA: PRZEŁĄCZANIE MOTYWU ---
+    public void setTheme(boolean isDark) {
+        if (isDark) {
+            backgroundColor = new Color(30, 30, 30);
+            nodeColor = new Color(0, 188, 212);
+            edgeColor = new Color(120, 120, 120);
+            textColor = Color.WHITE;
+            highlightColor = new Color(255, 235, 59);
+        } else {
+            backgroundColor = Color.WHITE;
+            nodeColor = Color.BLACK;
+            edgeColor = Color.DARK_GRAY;
+            textColor = Color.BLACK;
+            highlightColor = new Color(255, 100, 0); // Pomarańczowy dla Light Mode
+        }
+        setBackground(backgroundColor);
+        repaint();
     }
 
     public void resetLayout() {
@@ -271,7 +287,7 @@ public class GraphPanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        // --- MOJE DODATKI: tło Dark Mode ---
+        // Tło zależne od zmiennej backgroundColor
         g.setColor(backgroundColor);
         g.fillRect(0, 0, getWidth(), getHeight());
 
@@ -288,7 +304,6 @@ public class GraphPanel extends JPanel {
         double midY = (b[2] + b[3]) / 2;
 
         // Rysowanie krawędzi
-        g2.setStroke(new BasicStroke(edgeThickness));
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
@@ -298,7 +313,6 @@ public class GraphPanel extends JPanel {
                 int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
                 int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
 
-                // --- HIGHLIGHTING KRAWĘDZI ---
                 if (hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId())) {
                     g2.setColor(highlightColor);
                     g2.setStroke(new BasicStroke(edgeThickness + 2));
@@ -316,7 +330,6 @@ public class GraphPanel extends JPanel {
             int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
             int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
             
-            // --- HIGHLIGHTING WIERZCHOŁKA ---
             if (hoveredNode != null && hoveredNode.getId() == node.getId()) {
                 g2.setColor(highlightColor);
                 g2.fillOval(x - (nodeSize + 4)/2, y - (nodeSize + 4)/2, nodeSize + 4, nodeSize + 4);

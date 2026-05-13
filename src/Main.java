@@ -4,7 +4,7 @@ import java.io.File;
 
 public class Main {
     public static void main(String[] args) {
-        // 1. Ustawienie stabilnego wyglądu (Nimbus zamiast niedziałającego FlatLaf)
+        // 1. Ustawienie stabilnego wyglądu (Nimbus jest najlepszy do Dark Mode bez bibliotek)
         try {
             for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
@@ -20,14 +20,15 @@ public class Main {
             }
         }
 
-        // 2. Globalne ustawienia UI (Zaokrąglenia i Scrollbary)
+        // 2. Globalne ustawienia UI (Twoja logika zaokrągleń)
         UIManager.put("Button.arc", 15);      
         UIManager.put("Component.arc", 15);   
         UIManager.put("ScrollBar.showButtons", true);
         UIManager.put("ScrollBar.width", 12);
 
-        // 3. Zwiększenie czcionki (Twoja oryginalna logika)
-        Font bigFont = new Font("SansSerif", Font.BOLD, 22); // Nieco mniejsza niż 24, by zmieściła się w przyciskach
+        // 3. Zwiększenie czcionki (Twoja logika)
+        // Zmniejszyłem lekko do 20, żeby przyciski w JOptionPane nie były ucięte
+        Font bigFont = new Font("SansSerif", Font.BOLD, 20); 
         java.util.Enumeration<Object> keys = UIManager.getDefaults().keys();
         while (keys.hasMoreElements()) {
             Object key = keys.nextElement();
@@ -56,21 +57,22 @@ public class Main {
         if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
 
-            // Wybór loadera
+            // Wybór odpowiedniego loadera
             LoaderInterface loader = (choice == 0) ? new TextLoader() : new BinaryLoader();
             Graph graph = loader.load(selectedFile.getAbsolutePath());
 
             if (graph != null && !graph.getNodes().isEmpty()) {
-                System.out.println("SUKCES! Wczytano " + graph.getNodes().size() + " wezlow.");
+                System.out.println("SUKCES! Wczytano " + graph.getNodes().size() + " węzłów.");
 
-                // Otwieramy okno i przekazujemy graf
+                // Otwieramy główne okno
                 SwingUtilities.invokeLater(() -> {
                     MainFrame frame = new MainFrame();
+                    // Ustawienie grafu przed pokazaniem okna
                     frame.getGraphPanel().setGraph(graph); 
                     frame.setVisible(true);
                 });
             } else {
-                JOptionPane.showMessageDialog(null, "Błąd: Nie udało się wczytać grafu.");
+                JOptionPane.showMessageDialog(null, "Błąd: Nie udało się wczytać grafu lub plik jest pusty.");
                 System.exit(1);
             }
         } else {
