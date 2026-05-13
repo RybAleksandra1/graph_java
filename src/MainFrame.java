@@ -5,6 +5,7 @@ import java.io.File;
 public class MainFrame extends JFrame {
     private GraphPanel graphPanel; 
     private JPanel sidePanel; 
+    private JLayeredPane layeredPane; // Potrzebne do nakładania warstw
 
     public MainFrame() {
         setTitle("Wizualizacja Grafu - Projekt Java");
@@ -12,22 +13,36 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null); 
 
+        // --- 1. KONFIGURACJA KONTENERA WARSTWOWEGO ---
+        layeredPane = new JLayeredPane();
+        setContentPane(layeredPane);
+
         graphPanel = new GraphPanel();
-        
-        // --- ZOOM ---
+        // Graf w tle na całe okno
+        graphPanel.setBounds(0, 0, 1200, 800);
+        layeredPane.add(graphPanel, JLayeredPane.DEFAULT_LAYER);
+
+        // --- ZOOM (Twoja oryginalna obsługa myszki) ---
         graphPanel.addMouseWheelListener(e -> {
             if (e.getWheelRotation() < 0) graphPanel.setZoomFactor(graphPanel.getZoomFactor() * 1.1);
             else graphPanel.setZoomFactor(graphPanel.getZoomFactor() / 1.1);
         });
 
-        setupKeyboardShortcuts();
-        add(graphPanel, BorderLayout.CENTER);
-
-        // --- PANEL BOCZNY ---
+        // --- PANEL BOCZNY (SZKLANY) ---
         sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
-        sidePanel.setPreferredSize(new Dimension(300, 0));
+        sidePanel.setSize(new Dimension(300, 650)); // Stała szerokość dla "pływającego" panelu
+        
+        // Dynamiczne pozycjonowanie panelu przy zmianie rozmiaru okna
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                graphPanel.setBounds(0, 0, getWidth(), getHeight());
+                sidePanel.setLocation(getWidth() - sidePanel.getWidth() - 40, 40);
+            }
+        });
 
+        // --- ELEMENTY INTERFEJSU (Wszystko co miałaś) ---
         JCheckBox chkDarkMode = new JCheckBox("Tryb Ciemny", true);
         chkDarkMode.setFocusPainted(false);
         chkDarkMode.addActionListener(e -> applyGlobalTheme(chkDarkMode.isSelected()));
@@ -35,15 +50,10 @@ public class MainFrame extends JFrame {
         JButton btnReset = new JButton("Przywróć układ");
         btnReset.addActionListener(e -> graphPanel.resetLayout());
 
-        // NOWY PRZYCISK: Animacja impulsu (POPRAWIONY NA KASKADĘ)
         JButton btnAnimate = new JButton("Animuj impuls");
         btnAnimate.addActionListener(e -> {
-            if (graphPanel.getGraph() != null) {
-                // Odpalamy kaskadę od wierzchołka ID: 1
-                graphPanel.startCascade(1);
-            } else {
-                JOptionPane.showMessageDialog(this, "Wczytaj najpierw graf!");
-            }
+            if (graphPanel.getGraph() != null) graphPanel.startCascade(1);
+            else JOptionPane.showMessageDialog(this, "Wczytaj najpierw graf!");
         });
 
         JButton btnNodeColor = new JButton("Kolor punktów");
@@ -64,32 +74,30 @@ public class MainFrame extends JFrame {
         JSlider sliderThick = new JSlider(1, 10, 3);
         sliderThick.addChangeListener(e -> graphPanel.setEdgeThickness(sliderThick.getValue()));
 
-        // UKŁADANIE ELEMENTÓW W PANELU
+        // --- UKŁADANIE W PANELU BOCZNYM ---
         sidePanel.add(Box.createRigidArea(new Dimension(0, 10)));
         sidePanel.add(chkDarkMode);
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
         sidePanel.add(createStyledLabel(" Kolory:"));
         sidePanel.add(btnNodeColor);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnEdgeColor);
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 20)));
         sidePanel.add(createStyledLabel(" Akcje:"));
         sidePanel.add(btnReset); 
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnAnimate); 
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 25)));
         sidePanel.add(createStyledLabel(" Rozmiar punktów:"));
         sidePanel.add(sliderSize);
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
         sidePanel.add(createStyledLabel(" Grubość krawędzi:"));
         sidePanel.add(sliderThick);
 
-        add(sidePanel, BorderLayout.EAST);
+        // Dodanie panelu do warstwy wyższej (PALETTE)
+        layeredPane.add(sidePanel, JLayeredPane.PALETTE_LAYER);
 
+        setupKeyboardShortcuts();
         applyGlobalTheme(true);
         setupMenu();
     }
@@ -101,19 +109,22 @@ public class MainFrame extends JFrame {
     }
 
     private void applyGlobalTheme(boolean isDark) {
-        Color bgColor = isDark ? new Color(45, 45, 45) : new Color(240, 240, 240);
+        // Kolory szklane (półprzezroczyste)
+        Color glassColor = isDark ? new Color(45, 45, 45, 190) : new Color(240, 240, 240, 190);
         Color fgColor = isDark ? Color.WHITE : Color.BLACK;
 
         graphPanel.setTheme(isDark); 
 
-        sidePanel.setBackground(bgColor);
-        sidePanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(isDark ? Color.GRAY : Color.LIGHT_GRAY), 
-            "Opcje widoku", 0, 0, null, fgColor));
+        sidePanel.setBackground(glassColor);
+        sidePanel.setOpaque(false); // Pozwala widzieć graf pod panelem
+        sidePanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(255, 255, 255, 40), 1),
+            BorderFactory.createTitledBorder(null, "Opcje widoku", 0, 0, null, fgColor)
+        ));
 
         for (Component c : sidePanel.getComponents()) {
             if (c instanceof JButton) {
-                styleButton((JButton) c, isDark ? new Color(65, 65, 65) : Color.LIGHT_GRAY, fgColor);
+                styleButton((JButton) c, isDark ? new Color(65, 65, 65, 220) : new Color(220, 220, 220, 220), fgColor);
             } else if (c instanceof JLabel || c instanceof JCheckBox) {
                 c.setForeground(fgColor);
                 c.setFont(new Font("SansSerif", Font.BOLD, 16));
@@ -125,6 +136,7 @@ public class MainFrame extends JFrame {
                 styleSlider((JSlider) c, isDark);
             }
         }
+        repaint();
     }
 
     private void styleButton(JButton btn, Color bg, Color fg) {
