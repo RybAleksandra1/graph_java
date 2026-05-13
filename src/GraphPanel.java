@@ -179,6 +179,13 @@ public class GraphPanel extends JPanel {
         setBackground(backgroundColor);
         repaint();
     }
+public Graph getGraph() {
+    return this.graph;
+}
+
+
+public Node getHoveredNode() { return this.hoveredNode; }
+
 
     public void resetLayout() {
         if (graph == null || originalPositions.isEmpty()) return;

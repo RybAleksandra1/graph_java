@@ -23,12 +23,11 @@ public class MainFrame extends JFrame {
         setupKeyboardShortcuts();
         add(graphPanel, BorderLayout.CENTER);
 
-        // --- 3. PANEL BOCZNY ---
+        // --- PANEL BOCZNY ---
         sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
-        sidePanel.setPreferredSize(new Dimension(300, 0)); // Szerokość 300 zapobiega ucinaniu
+        sidePanel.setPreferredSize(new Dimension(300, 0));
 
-        // PRZEŁĄCZNIK TRYBU
         JCheckBox chkDarkMode = new JCheckBox("Tryb Ciemny", true);
         chkDarkMode.setFocusPainted(false);
         chkDarkMode.addActionListener(e -> applyGlobalTheme(chkDarkMode.isSelected()));
@@ -48,40 +47,32 @@ public class MainFrame extends JFrame {
             if (c != null) graphPanel.setEdgeColor(c);
         });
 
-        // --- SUWAKI ZAMIAST SPINNERÓW ---
         JSlider sliderSize = new JSlider(5, 50, 16);
         sliderSize.addChangeListener(e -> graphPanel.setNodeSize(sliderSize.getValue()));
 
         JSlider sliderThick = new JSlider(1, 10, 3);
         sliderThick.addChangeListener(e -> graphPanel.setEdgeThickness(sliderThick.getValue()));
 
-        // Dodawanie elementów do panelu (z marginesami)
         sidePanel.add(Box.createRigidArea(new Dimension(0, 10)));
         sidePanel.add(chkDarkMode);
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
         sidePanel.add(createStyledLabel(" Kolory:"));
         sidePanel.add(btnNodeColor);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnEdgeColor);
-
         sidePanel.add(Box.createRigidArea(new Dimension(0, 20)));
         sidePanel.add(createStyledLabel(" Akcje:"));
         sidePanel.add(btnReset); 
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 25)));
         sidePanel.add(createStyledLabel(" Rozmiar punktów:"));
         sidePanel.add(sliderSize);
-        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
         sidePanel.add(createStyledLabel(" Grubość krawędzi:"));
         sidePanel.add(sliderThick);
 
         add(sidePanel, BorderLayout.EAST);
 
-        // Ustawienie domyślnego trybu
         applyGlobalTheme(true);
-
         setupMenu();
     }
 
@@ -131,7 +122,6 @@ public class MainFrame extends JFrame {
         slider.setOpaque(false);
         slider.setAlignmentX(Component.LEFT_ALIGNMENT);
         slider.setForeground(isDark ? Color.WHITE : Color.BLACK);
-        // Podziałka na suwaku
         slider.setPaintTicks(true);
         slider.setMajorTickSpacing(10);
     }
@@ -170,7 +160,9 @@ public class MainFrame extends JFrame {
         fileChooser.updateUI();
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             Graph graph = loader.load(fileChooser.getSelectedFile().getAbsolutePath());
-            if (graph != null) graphPanel.setGraph(graph);
+            if (graph != null) {
+                graphPanel.setGraph(graph);
+            }
         }
     }
 
