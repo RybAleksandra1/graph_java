@@ -27,22 +27,25 @@ public class MainFrame extends JFrame {
         sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
         sidePanel.setPreferredSize(new Dimension(300, 0));
-        JButton btnAnimate = new JButton("Animuj impuls");
-            btnAnimate.addActionListener(e -> {
-                Graph g = graphPanel.getGraph();
-                if (g != null && !g.getEdges().isEmpty()) {
-                    // Wybieramy pierwszą lepszą krawędź do testu
-                    graphPanel.animateEdge(g.getEdges().get(0));
-                }
-            });
-            sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
-            sidePanel.add(btnAnimate);
+
         JCheckBox chkDarkMode = new JCheckBox("Tryb Ciemny", true);
         chkDarkMode.setFocusPainted(false);
         chkDarkMode.addActionListener(e -> applyGlobalTheme(chkDarkMode.isSelected()));
 
         JButton btnReset = new JButton("Przywróć układ");
         btnReset.addActionListener(e -> graphPanel.resetLayout());
+
+        // NOWY PRZYCISK: Animacja impulsu
+        JButton btnAnimate = new JButton("Animuj impuls");
+        btnAnimate.addActionListener(e -> {
+            Graph g = graphPanel.getGraph();
+            if (g != null && !g.getEdges().isEmpty()) {
+                // Odpalamy impuls na pierwszej krawędzi z listy
+                graphPanel.animateEdge(g.getEdges().get(0));
+            } else {
+                JOptionPane.showMessageDialog(this, "Wczytaj najpierw graf z krawędziami!");
+            }
+        });
 
         JButton btnNodeColor = new JButton("Kolor punktów");
         btnNodeColor.addActionListener(e -> {
@@ -62,19 +65,26 @@ public class MainFrame extends JFrame {
         JSlider sliderThick = new JSlider(1, 10, 3);
         sliderThick.addChangeListener(e -> graphPanel.setEdgeThickness(sliderThick.getValue()));
 
+        // UKŁADANIE ELEMENTÓW W PANELU
         sidePanel.add(Box.createRigidArea(new Dimension(0, 10)));
         sidePanel.add(chkDarkMode);
+        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
         sidePanel.add(createStyledLabel(" Kolory:"));
         sidePanel.add(btnNodeColor);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnEdgeColor);
+        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 20)));
         sidePanel.add(createStyledLabel(" Akcje:"));
         sidePanel.add(btnReset); 
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        sidePanel.add(btnAnimate); // Dodany przycisk animacji
+        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 25)));
         sidePanel.add(createStyledLabel(" Rozmiar punktów:"));
         sidePanel.add(sliderSize);
+        
         sidePanel.add(Box.createRigidArea(new Dimension(0, 15)));
         sidePanel.add(createStyledLabel(" Grubość krawędzi:"));
         sidePanel.add(sliderThick);
@@ -104,6 +114,7 @@ public class MainFrame extends JFrame {
 
         for (Component c : sidePanel.getComponents()) {
             if (c instanceof JButton) {
+                // Tutaj automatycznie styleButton obejmie też btnAnimate
                 styleButton((JButton) c, isDark ? new Color(65, 65, 65) : Color.LIGHT_GRAY, fgColor);
             } else if (c instanceof JLabel || c instanceof JCheckBox) {
                 c.setForeground(fgColor);

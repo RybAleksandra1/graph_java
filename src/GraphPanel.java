@@ -8,17 +8,19 @@ import java.util.Map;
 
 public class GraphPanel extends JPanel {
     private Graph graph;
-    private Timer pathTimer;
+    
+    // --- POLA ANIMACJI ---
+    private javax.swing.Timer pathTimer;
     private float pulsePos = 0; // Pozycja impulsu (0.0 do 1.0)
     private Edge activeEdge;    // Krawędź, po której biegnie impuls
-        // --- DYNAMICZNE KOLORY (ZALEŻNE OD TRYBU) ---
+
+    // --- DYNAMICZNE KOLORY ---
     private Color backgroundColor = new Color(30, 30, 30); 
     private Color nodeColor = new Color(0, 188, 212);     
     private Color edgeColor = new Color(120, 120, 120);   
     private Color textColor = Color.WHITE;                
     private Color highlightColor = new Color(255, 235, 59); 
     
-    // --- ZMIENNA DO PODŚWIETLANIA ---
     private Node hoveredNode = null; 
 
     private int nodeSize = 16;
@@ -34,7 +36,6 @@ public class GraphPanel extends JPanel {
     private Map<Integer, Point.Double> originalPositions = new HashMap<>();
     
     public GraphPanel() {
-        // Ustawienie początkowego tła
         setBackground(backgroundColor);
 
         MouseAdapter ma = new MouseAdapter() {
@@ -162,28 +163,27 @@ public class GraphPanel extends JPanel {
         addMouseListener(ma);
         addMouseMotionListener(ma);
     }
-    public void animateEdge(Edge edge) {
-    this.activeEdge = edge;
-    this.pulsePos = 0;
 
-    // Jeśli poprzednia animacja jeszcze trwa, zatrzymujemy ją
-    if (pathTimer != null && pathTimer.isRunning()) {
-        pathTimer.stop();
+    // --- METODA URUCHAMIAJĄCA ANIMACJĘ ---
+    public void animateEdge(Edge edge) {
+        this.activeEdge = edge;
+        this.pulsePos = 0;
+
+        if (pathTimer != null && pathTimer.isRunning()) {
+            pathTimer.stop();
+        }
+
+        pathTimer = new javax.swing.Timer(20, e -> {
+            pulsePos += 0.02f; 
+            if (pulsePos > 1.0f) {
+                pulsePos = 0; 
+            }
+            repaint(); 
+        });
+        
+        pathTimer.start();
     }
 
-    // Tworzymy timer: 20ms to około 50 klatek na sekundę
-    pathTimer = new javax.swing.Timer(20, e -> {
-        pulsePos += 0.015f; // Prędkość impulsu (zmień na większą, by było szybciej)
-        
-        if (pulsePos > 1.0f) {
-            pulsePos = 0; // Zapętlamy animację
-        }
-        repaint(); // Przerysowujemy panel, by kropka się ruszyła
-    });
-    
-    pathTimer.start();
-}
-    // --- NOWA METODA: PRZEŁĄCZANIE MOTYWU ---
     public void setTheme(boolean isDark) {
         if (isDark) {
             backgroundColor = new Color(30, 30, 30);
@@ -196,18 +196,14 @@ public class GraphPanel extends JPanel {
             nodeColor = Color.BLACK;
             edgeColor = Color.DARK_GRAY;
             textColor = Color.BLACK;
-            highlightColor = new Color(255, 100, 0); // Pomarańczowy dla Light Mode
+            highlightColor = new Color(255, 100, 0); 
         }
         setBackground(backgroundColor);
         repaint();
     }
-public Graph getGraph() {
-    return this.graph;
-}
 
-
-public Node getHoveredNode() { return this.hoveredNode; }
-
+    public Graph getGraph() { return this.graph; }
+    public Node getHoveredNode() { return this.hoveredNode; }
 
     public void resetLayout() {
         if (graph == null || originalPositions.isEmpty()) return;
@@ -316,7 +312,6 @@ public Node getHoveredNode() { return this.hoveredNode; }
 
     @Override
     protected void paintComponent(Graphics g) {
-        // Tło zależne od zmiennej backgroundColor
         g.setColor(backgroundColor);
         g.fillRect(0, 0, getWidth(), getHeight());
 
@@ -332,7 +327,7 @@ public Node getHoveredNode() { return this.hoveredNode; }
         double midX = (b[0] + b[1]) / 2;
         double midY = (b[2] + b[3]) / 2;
 
-        // Rysowanie krawędzi
+        // 1. Rysowanie krawędzi
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
@@ -349,12 +344,11 @@ public Node getHoveredNode() { return this.hoveredNode; }
                     g2.setColor(edgeColor);
                     g2.setStroke(new BasicStroke(edgeThickness));
                 }
-                
                 g2.drawLine(x1, y1, x2, y2);
             }
         }
 
-        // Rysowanie wierzchołków
+        // 2. Rysowanie wierzchołków
         for (Node node : graph.getNodes().values()) {
             int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
             int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
@@ -366,9 +360,29 @@ public Node getHoveredNode() { return this.hoveredNode; }
                 g2.setColor(nodeColor);
                 g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
             }
-
             g2.setColor(textColor);
             g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 2, y);
+        }
+
+        // 3. RYSUJEMY IMPULS (DODANO!)
+        if (activeEdge != null && pathTimer != null && pathTimer.isRunning()) {
+            Node n1 = graph.getNodes().get(activeEdge.getUId());
+            Node n2 = graph.getNodes().get(activeEdge.getVId());
+
+            if (n1 != null && n2 != null) {
+                int x1 = (int) ((n1.getX() - midX) * scale) + centerX + (int)offsetX;
+                int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
+                int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
+                int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
+
+                int px = (int) (x1 + (x2 - x1) * pulsePos);
+                int py = (int) (y1 + (y2 - y1) * pulsePos);
+
+                g2.setColor(new Color(255, 235, 59, 150)); 
+                g2.fillOval(px - 10, py - 10, 20, 20);
+                g2.setColor(Color.YELLOW);
+                g2.fillOval(px - 6, py - 6, 12, 12);
+            }
         }
     }
 }
