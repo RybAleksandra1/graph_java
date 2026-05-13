@@ -3,18 +3,36 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class GraphPanel extends JPanel {
     private Graph graph;
     
-    // --- POLA ANIMACJI ---
-    private javax.swing.Timer pathTimer;
-    private float pulsePos = 0; // Pozycja impulsu (0.0 do 1.0)
-    private Edge activeEdge;    // Krawędź, po której biegnie impuls
+    // --- POLA ANIMACJI KASKADOWEJ ---
+    private Timer pathTimer;
+    private List<ActivePulse> activePulses = new ArrayList<>();
+    private Set<Edge> visitedEdges = new HashSet<>(); // Zapobiega zapętleniu
 
-    // --- DYNAMICZNE KOLORY ---
+    private class ActivePulse {
+        Edge edge;
+        float pos;
+        int targetNodeId;
+        Node startNode;
+
+        ActivePulse(Edge e, int target, Node start) {
+            this.edge = e;
+            this.pos = 0;
+            this.targetNodeId = target;
+            this.startNode = start;
+        }
+    }
+
+    // --- KOLORY I PARAMETRY ---
     private Color backgroundColor = new Color(30, 30, 30); 
     private Color nodeColor = new Color(0, 188, 212);     
     private Color edgeColor = new Color(120, 120, 120);   
@@ -22,7 +40,6 @@ public class GraphPanel extends JPanel {
     private Color highlightColor = new Color(255, 235, 59); 
     
     private Node hoveredNode = null; 
-
     private int nodeSize = 16;
     private int edgeThickness = 3;
     private double zoomFactor = 1.0;
@@ -37,54 +54,42 @@ public class GraphPanel extends JPanel {
     
     public GraphPanel() {
         setBackground(backgroundColor);
-
         MouseAdapter ma = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
                 if (graph == null) return;
-                
                 Node previousHover = hoveredNode;
                 hoveredNode = null;
 
                 double[] bounds = calculateGraphBounds();
                 double scale = calculateScale(bounds);
-                int centerX = getWidth() / 2;
-                int centerY = getHeight() / 2;
-                double midX = (bounds[0] + bounds[1]) / 2;
-                double midY = (bounds[2] + bounds[3]) / 2;
+                int centerX = getWidth() / 2, centerY = getHeight() / 2;
+                double midX = (bounds[0] + bounds[1]) / 2, midY = (bounds[2] + bounds[3]) / 2;
 
                 for (Node node : graph.getNodes().values()) {
                     int nx = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
                     int ny = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
-
                     if (Math.hypot(e.getX() - nx, e.getY() - ny) < nodeSize) {
                         hoveredNode = node;
                         break;
                     }
                 }
-
-                if (previousHover != hoveredNode) {
-                    repaint();
-                }
+                if (previousHover != hoveredNode) repaint();
             }
 
             @Override
             public void mousePressed(MouseEvent e) {
                 if (graph == null) return;
                 lastMousePoint = e.getPoint();
-
                 double[] bounds = calculateGraphBounds();
                 double scale = calculateScale(bounds);
-                int centerX = getWidth() / 2;
-                int centerY = getHeight() / 2;
-                double midX = (bounds[0] + bounds[1]) / 2;
-                double midY = (bounds[2] + bounds[3]) / 2;
+                int centerX = getWidth() / 2, centerY = getHeight() / 2;
+                double midX = (bounds[0] + bounds[1]) / 2, midY = (bounds[2] + bounds[3]) / 2;
 
                 draggedNode = null;
                 for (Node node : graph.getNodes().values()) {
                     int nx = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
                     int ny = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
-
                     if (Math.hypot(e.getX() - nx, e.getY() - ny) < nodeSize) {
                         draggedNode = node;
                         return;
@@ -100,7 +105,6 @@ public class GraphPanel extends JPanel {
                         int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
                         int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
                         int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
-
                         if (Line2D.ptSegDist(x1, y1, x2, y2, e.getX(), e.getY()) < 5) {
                             draggedEdge = edge;
                             break;
@@ -111,48 +115,29 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                draggedNode = null;
-                draggedEdge = null;
-                lastMousePoint = null;
+                draggedNode = null; draggedEdge = null; lastMousePoint = null;
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (graph == null || lastMousePoint == null) return;
-
                 if (draggedNode == null && draggedEdge == null) {
                     offsetX += (e.getX() - lastMousePoint.x);
                     offsetY += (e.getY() - lastMousePoint.y);
-                } 
-                else {
+                } else {
                     double[] bounds = calculateGraphBounds();
                     double scale = calculateScale(bounds);
-
                     double dx = (e.getX() - lastMousePoint.x) / scale;
                     double dy = (e.getY() - lastMousePoint.y) / scale;
-
                     if (draggedNode != null) {
-                        double oldX = draggedNode.getX();
-                        double oldY = draggedNode.getY();
-                        draggedNode.setX(oldX + dx);
-                        draggedNode.setY(oldY + dy);
-                        if (!isGraphPlanar()) {
-                            draggedNode.setX(oldX);
-                            draggedNode.setY(oldY);
-                        }
-                    } 
-                    else if (draggedEdge != null) {
+                        draggedNode.setX(draggedNode.getX() + dx);
+                        draggedNode.setY(draggedNode.getY() + dy);
+                    } else if (draggedEdge != null) {
                         Node n1 = graph.getNodes().get(draggedEdge.getUId());
                         Node n2 = graph.getNodes().get(draggedEdge.getVId());
                         if (n1 != null && n2 != null) {
-                            double oldX1 = n1.getX(), oldY1 = n1.getY();
-                            double oldX2 = n2.getX(), oldY2 = n2.getY();
-                            n1.setX(oldX1 + dx); n1.setY(oldY1 + dy);
-                            n2.setX(oldX2 + dx); n2.setY(oldY2 + dy);
-                            if (!isGraphPlanar()) {
-                                n1.setX(oldX1); n1.setY(oldY1);
-                                n2.setX(oldX2); n2.setY(oldY2);
-                            }
+                            n1.setX(n1.getX() + dx); n1.setY(n1.getY() + dy);
+                            n2.setX(n2.getX() + dx); n2.setY(n2.getY() + dy);
                         }
                     }
                 }
@@ -164,24 +149,47 @@ public class GraphPanel extends JPanel {
         addMouseMotionListener(ma);
     }
 
-    // --- METODA URUCHAMIAJĄCA ANIMACJĘ ---
-    public void animateEdge(Edge edge) {
-        this.activeEdge = edge;
-        this.pulsePos = 0;
-
-        if (pathTimer != null && pathTimer.isRunning()) {
-            pathTimer.stop();
-        }
-
-        pathTimer = new javax.swing.Timer(20, e -> {
-            pulsePos += 0.02f; 
-            if (pulsePos > 1.0f) {
-                pulsePos = 0; 
-            }
-            repaint(); 
-        });
+    public void startCascade(int startNodeId) {
+        activePulses.clear();
+        visitedEdges.clear();
+        triggerPulsesFromNode(startNodeId);
         
+        if (pathTimer != null) pathTimer.stop();
+        
+        pathTimer = new Timer(15, e -> {
+            List<ActivePulse> finished = new ArrayList<>();
+            synchronized(activePulses) {
+                for (ActivePulse p : activePulses) {
+                    p.pos += 0.03f;
+                    if (p.pos >= 1.0f) finished.add(p);
+                }
+
+                for (ActivePulse f : finished) {
+                    activePulses.remove(f);
+                    triggerPulsesFromNode(f.targetNodeId); 
+                }
+            }
+            if (activePulses.isEmpty()) pathTimer.stop();
+            repaint();
+        });
         pathTimer.start();
+    }
+
+    private void triggerPulsesFromNode(int nodeId) {
+        Node startNode = graph.getNodes().get(nodeId);
+        if (startNode == null) return;
+
+        for (Edge e : graph.getEdges()) {
+            if (!visitedEdges.contains(e)) {
+                if (e.getUId() == nodeId) {
+                    activePulses.add(new ActivePulse(e, e.getVId(), startNode));
+                    visitedEdges.add(e);
+                } else if (e.getVId() == nodeId) {
+                    activePulses.add(new ActivePulse(e, e.getUId(), startNode));
+                    visitedEdges.add(e);
+                }
+            }
+        }
     }
 
     public void setTheme(boolean isDark) {
@@ -209,66 +217,10 @@ public class GraphPanel extends JPanel {
         if (graph == null || originalPositions.isEmpty()) return;
         for (Node node : graph.getNodes().values()) {
             Point.Double pos = originalPositions.get(node.getId());
-            if (pos != null) {
-                node.setX(pos.x);
-                node.setY(pos.y);
-            }
+            if (pos != null) { node.setX(pos.x); node.setY(pos.y); }
         }
-        this.zoomFactor = 1.0;
-        this.offsetX = 0;
-        this.offsetY = 0;
+        this.zoomFactor = 1.0; this.offsetX = 0; this.offsetY = 0;
         repaint();
-    }
-
-    private boolean isGraphPlanar() {
-        java.util.List<Edge> edges = graph.getEdges();
-        int size = edges.size();
-        for (int i = 0; i < size; i++) {
-            for (int j = i + 1; j < size; j++) {
-                Edge e1 = edges.get(i);
-                Edge e2 = edges.get(j);
-                Node a = graph.getNodes().get(e1.getUId());
-                Node b = graph.getNodes().get(e1.getVId());
-                Node c = graph.getNodes().get(e2.getUId());
-                Node d = graph.getNodes().get(e2.getVId());
-                if (a == null || b == null || c == null || d == null) continue;
-                if (intersect(a, b, c, d)) return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean intersect(Node a, Node b, Node c, Node d) {
-        int o1 = relativeOrientation(a, b, c);
-        int o2 = relativeOrientation(a, b, d);
-        int o3 = relativeOrientation(c, d, a);
-        int o4 = relativeOrientation(c, d, b);
-        if (a != c && a != d && b != c && b != d) {
-            if (o1 != o2 && o3 != o4) return true;
-        }
-        if (isPointTooCloseToSegment(c, a, b)) return true;
-        if (isPointTooCloseToSegment(d, a, b)) return true;
-        if (isPointTooCloseToSegment(a, c, d)) return true;
-        if (isPointTooCloseToSegment(b, c, d)) return true;
-        return false;
-    }
-
-    private boolean isPointTooCloseToSegment(Node p, Node a, Node b) {
-        if (isSamePos(p, a) || isSamePos(p, b)) return false;
-        double dist = Line2D.ptSegDist(a.getX(), a.getY(), b.getX(), b.getY(), p.getX(), p.getY());
-        return dist < 0.1; 
-    }
-
-    private boolean isSamePos(Node n1, Node n2) {
-        return Math.abs(n1.getX() - n2.getX()) < 1e-9 && 
-               Math.abs(n1.getY() - n2.getY()) < 1e-9;
-    }
-
-    private int relativeOrientation(Node p, Node q, Node r) {
-        double val = (q.getY() - p.getY()) * (r.getX() - q.getX()) -
-                     (q.getX() - p.getX()) * (r.getY() - q.getY());
-        if (Math.abs(val) < 1e-9) return 0;
-        return (val > 0) ? 1 : 2;
     }
 
     private double[] calculateGraphBounds() {
@@ -298,8 +250,7 @@ public class GraphPanel extends JPanel {
                 originalPositions.put(node.getId(), new Point.Double(node.getX(), node.getY()));
             }
         }
-        this.offsetX = 0;
-        this.offsetY = 0;
+        this.offsetX = 0; this.offsetY = 0;
         repaint();
     }
 
@@ -312,22 +263,18 @@ public class GraphPanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        g.setColor(backgroundColor);
-        g.fillRect(0, 0, getWidth(), getHeight());
-
-        if (graph == null || graph.getNodes().isEmpty()) return;
-
+        super.paintComponent(g); 
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        if (graph == null || graph.getNodes().isEmpty()) return;
+
         double[] b = calculateGraphBounds();
         double scale = calculateScale(b);
-        int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2;
-        double midX = (b[0] + b[1]) / 2;
-        double midY = (b[2] + b[3]) / 2;
+        int centerX = getWidth() / 2, centerY = getHeight() / 2;
+        double midX = (b[0] + b[1]) / 2, midY = (b[2] + b[3]) / 2;
 
-        // 1. Rysowanie krawędzi
+        // 1. Krawędzie
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
@@ -336,52 +283,38 @@ public class GraphPanel extends JPanel {
                 int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
                 int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
                 int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
-
-                if (hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId())) {
-                    g2.setColor(highlightColor);
-                    g2.setStroke(new BasicStroke(edgeThickness + 2));
-                } else {
-                    g2.setColor(edgeColor);
-                    g2.setStroke(new BasicStroke(edgeThickness));
-                }
+                g2.setColor((hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId())) ? highlightColor : edgeColor);
+                g2.setStroke(new BasicStroke(edgeThickness));
                 g2.drawLine(x1, y1, x2, y2);
             }
         }
 
-        // 2. Rysowanie wierzchołków
+        // 2. Wierzchołki
         for (Node node : graph.getNodes().values()) {
             int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
             int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
-            
-            if (hoveredNode != null && hoveredNode.getId() == node.getId()) {
-                g2.setColor(highlightColor);
-                g2.fillOval(x - (nodeSize + 4)/2, y - (nodeSize + 4)/2, nodeSize + 4, nodeSize + 4);
-            } else {
-                g2.setColor(nodeColor);
-                g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
-            }
+            g2.setColor((hoveredNode != null && hoveredNode.getId() == node.getId()) ? highlightColor : nodeColor);
+            g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
             g2.setColor(textColor);
             g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 2, y);
         }
 
-        // 3. RYSUJEMY IMPULS (DODANO!)
-        if (activeEdge != null && pathTimer != null && pathTimer.isRunning()) {
-            Node n1 = graph.getNodes().get(activeEdge.getUId());
-            Node n2 = graph.getNodes().get(activeEdge.getVId());
-
-            if (n1 != null && n2 != null) {
-                int x1 = (int) ((n1.getX() - midX) * scale) + centerX + (int)offsetX;
-                int y1 = (int) ((n1.getY() - midY) * scale) + centerY + (int)offsetY;
-                int x2 = (int) ((n2.getX() - midX) * scale) + centerX + (int)offsetX;
-                int y2 = (int) ((n2.getY() - midY) * scale) + centerY + (int)offsetY;
-
-                int px = (int) (x1 + (x2 - x1) * pulsePos);
-                int py = (int) (y1 + (y2 - y1) * pulsePos);
-
-                g2.setColor(new Color(255, 235, 59, 150)); 
-                g2.fillOval(px - 10, py - 10, 20, 20);
-                g2.setColor(Color.YELLOW);
-                g2.fillOval(px - 6, py - 6, 12, 12);
+        // 3. IMPULSY
+        synchronized(activePulses) {
+            for (ActivePulse p : activePulses) {
+                Node nEnd = graph.getNodes().get(p.targetNodeId);
+                if (p.startNode != null && nEnd != null) {
+                    int x1 = (int) ((p.startNode.getX() - midX) * scale) + centerX + (int)offsetX;
+                    int y1 = (int) ((p.startNode.getY() - midY) * scale) + centerY + (int)offsetY;
+                    int x2 = (int) ((nEnd.getX() - midX) * scale) + centerX + (int)offsetX;
+                    int y2 = (int) ((nEnd.getY() - midY) * scale) + centerY + (int)offsetY;
+                    int px = (int) (x1 + (x2 - x1) * p.pos);
+                    int py = (int) (y1 + (y2 - y1) * p.pos);
+                    g2.setColor(new Color(255, 235, 59, 180));
+                    g2.fillOval(px - 10, py - 10, 20, 20);
+                    g2.setColor(Color.YELLOW);
+                    g2.fillOval(px - 6, py - 6, 12, 12);
+                }
             }
         }
     }
