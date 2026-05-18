@@ -384,11 +384,11 @@ public class GraphPanel extends JPanel {
 
                     // --- DYNAMICZNY ROZMIAR CZCIONKI ---
                     // Dzielimy przez zoomFactor, aby tekst NIE MALAŁ przy oddalaniu grafu
-                    int dynamicFontSize = (int) (14 / zoomFactor);
+                    int dynamicFontSize = 12 + (edgeThickness * 3);
 
-                    // Ograniczenie wielkości czcionki na ekranie monitora (od 11 do 24 pikseli)
-                    if (dynamicFontSize < 11) dynamicFontSize = 11;
-                    if (dynamicFontSize > 24) dynamicFontSize = 24;
+                    // Bezpieczne granice (górna granica znacznie wyżej)
+                    if (dynamicFontSize < 12) dynamicFontSize = 12;
+                    if (dynamicFontSize > 38) dynamicFontSize = 38;
 
                     g2.setFont(new Font("SansSerif", Font.BOLD, dynamicFontSize));
 
@@ -448,10 +448,11 @@ public class GraphPanel extends JPanel {
             g2.drawOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
 
             // DYNAMICZNY ROZMIAR CZCIONKI DLA ETYKIET WIERZCHOŁKÓW
-            int nodeFontSize = (int) (13 / zoomFactor);
+            int nodeFontSize = 10 + nodeSize;
 
-            if (nodeFontSize < 11) nodeFontSize = 11;
-            if (nodeFontSize > 22) nodeFontSize = 22;
+            // Bezpieczne granice (górna granica przesunięta wysoko w górę)
+            if (nodeFontSize < 12) nodeFontSize = 12;
+            if (nodeFontSize > 36) nodeFontSize = 36;
 
             g2.setFont(new Font("SansSerif", Font.BOLD, nodeFontSize));
 

@@ -9,9 +9,19 @@ public class MainFrame extends JFrame {
 
     public MainFrame() {
         setTitle("Wizualizacja Grafu - Projekt Java");
-        setSize(1200, 800); 
+        // --- DYNAMICZNE OBLICZANIE ROZMIARU (2/3 EKRANU) ---
+        // Pobieramy rozmiar całego ekranu komputera
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        
+        // Obliczamy szerokość i wysokość jako 2/3 (0.66) wymiarów ekranu
+        int width = (int) (screenSize.width * 2.0 / 3.0);
+        int height = (int) (screenSize.height * 2.0 / 3.0);
+        
+        setSize(width, height);
+        // --------------------------------------------------
+        
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null); 
+        setLocationRelativeTo(null); // Centrowanie na ekranie (musi być PO setSize)
 
         // --- 1. KONFIGURACJA KONTENERA WARSTWOWEGO ---
         layeredPane = new JLayeredPane();
