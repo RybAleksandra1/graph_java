@@ -3,9 +3,13 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
@@ -144,6 +148,47 @@ public class GraphPanel extends JPanel {
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
+    }
+
+    // --- EKSPORT GRAFU DO PLIKU TEKSTOWEGO ---
+    public void exportGraphToCustomTextFile(String filePath) {
+        if (graph == null || graph.getEdges().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Graf jest pusty lub nie posiada żadnych krawędzi do zapisu.", "Ostrzeżenie", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            java.util.List<Edge> edges = graph.getEdges();
+            
+            for (int i = 0; i < edges.size(); i++) {
+                Edge edge = edges.get(i);
+                Node n1 = graph.getNodes().get(edge.getUId());
+                Node n2 = graph.getNodes().get(edge.getVId());
+
+                if (n1 != null && n2 != null) {
+                    // Domyślna waga ustawiona jako przykładowe 1.50
+                    double weight = 1.50; 
+                    
+                    // Jeśli Twoja klasa Edge ma metodę zwracającą wagę (np. edge.getWeight()), możesz zamienić na:
+                    // double weight = edge.getWeight();
+
+                    // Formatowanie zgodne z wytycznymi przy użyciu kropek dziesiętnych
+                    String line = String.format(Locale.US, 
+                        "Krawedz%d;W%d:X:%.2f,Y:%.2f; W%d:X:%.2f,Y:%.2f;%.2f",
+                        (i + 1), 
+                        n1.getId(), n1.getX(), n1.getY(), 
+                        n2.getId(), n2.getX(), n2.getY(), 
+                        weight
+                    );
+
+                    writer.write(line);
+                    writer.newLine();
+                }
+            }
+            JOptionPane.showMessageDialog(this, "Graf został pomyślnie zapisany do pliku tekstowego.", "Sukces", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Wystąpił błąd podczas zapisu pliku:\n" + e.getMessage(), "Błąd zapisu", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public void startCascade(int startNodeId) {

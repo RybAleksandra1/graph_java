@@ -50,6 +50,33 @@ public class MainFrame extends JFrame {
         JButton btnReset = new JButton("Przywróć układ");
         btnReset.addActionListener(e -> graphPanel.resetLayout());
 
+        // NOWY PRZYCISK: Zapis struktury do pliku tekstowego
+        JButton btnSaveTxt = new JButton("Zapisz jako TXT");
+        btnSaveTxt.setBackground(new Color(220, 255, 220)); // Delikatny zielony dla odróżnienia akcji zapisu
+        btnSaveTxt.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Wybierz miejsce zapisu grafu (TXT)");
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Pliki tekstowe (*.txt)", "txt"));
+            
+            // Dopasowanie rozmiaru okna wyboru pliku
+            fileChooser.setPreferredSize(new Dimension(1200, 800));
+            fileChooser.updateUI();
+
+            int userSelection = fileChooser.showSaveDialog(this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File fileToSave = fileChooser.getSelectedFile();
+                String filePath = fileToSave.getAbsolutePath();
+                
+                // Automatyczne dopisywanie rozszerzenia .txt, jeśli użytkownik go pominął
+                if (!filePath.toLowerCase().endsWith(".txt")) {
+                    filePath += ".txt";
+                }
+                
+                // Wywołanie metody zapisu zaimplementowanej w GraphPanel
+                graphPanel.exportGraphToCustomTextFile(filePath);
+            }
+        });
+
         JButton btnAnimate = new JButton("Animuj impuls");
         btnAnimate.addActionListener(e -> {
             if (graphPanel.getGraph() != null) graphPanel.startCascade(1);
@@ -84,7 +111,9 @@ public class MainFrame extends JFrame {
         sidePanel.add(btnEdgeColor);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 20)));
         sidePanel.add(createStyledLabel(" Akcje:"));
-        sidePanel.add(btnReset); 
+        sidePanel.add(btnReset);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        sidePanel.add(btnSaveTxt);                              
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnAnimate); 
         sidePanel.add(Box.createRigidArea(new Dimension(0, 25)));
