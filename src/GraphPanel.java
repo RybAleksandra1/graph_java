@@ -380,7 +380,13 @@ public class GraphPanel extends JPanel {
                     String weightText = String.format(Locale.US, "%.2f", weight);
 
                     // --- DYNAMICZNY ROZMIAR CZCIONKI ---
-                    int dynamicFontSize = (int) Math.max(9, 14 * zoomFactor);
+                    // Dzielimy przez zoomFactor, aby tekst NIE MALAŁ przy oddalaniu grafu
+                    int dynamicFontSize = (int) (14 / zoomFactor);
+
+                    // Ograniczenie wielkości czcionki na ekranie monitora (od 11 do 24 pikseli)
+                    if (dynamicFontSize < 11) dynamicFontSize = 11;
+                    if (dynamicFontSize > 24) dynamicFontSize = 24;
+
                     g2.setFont(new Font("SansSerif", Font.BOLD, dynamicFontSize));
 
                     // Obliczamy wymiary tła dopasowane do dynamicznego rozmiaru czcionki
@@ -441,12 +447,22 @@ public class GraphPanel extends JPanel {
             g2.setStroke(new BasicStroke(1));
             g2.drawOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
 
+            // DYNAMICZNY ROZMIAR CZCIONKI DLA ETYKIET WIERZCHOŁKÓW
+            int nodeFontSize = (int) (13 / zoomFactor);
+
+            if (nodeFontSize < 11) nodeFontSize = 11;
+            if (nodeFontSize > 22) nodeFontSize = 22;
+
+            g2.setFont(new Font("SansSerif", Font.BOLD, nodeFontSize));
+
             // ETYKIETA (Z CIENIEM DLA CZYTELNOŚCI)
-            g2.setFont(new Font("SansSerif", Font.BOLD, 13));
+            int textOffsetY = g2.getFontMetrics().getAscent() / 2; 
+            String nodeIdText = String.valueOf(node.getId());
+
             g2.setColor(Color.BLACK);
-            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 6, y + 6); // Cień tekstu
+            g2.drawString(nodeIdText, x + nodeSize/2 + 6, y + textOffsetY + 1); // Cień tekstu
             g2.setColor(textColor);
-            g2.drawString(String.valueOf(node.getId()), x + nodeSize/2 + 5, y + 5);
+            g2.drawString(nodeIdText, x + nodeSize/2 + 5, y + textOffsetY);    // Tekst właściwy
         }
 
         // --- 5. IMPULSY KASKADOWE (ENERGETYCZNE WYŁADOWANIA) ---
