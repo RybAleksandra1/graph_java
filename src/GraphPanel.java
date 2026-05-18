@@ -25,11 +25,6 @@ public class GraphPanel extends JPanel {
     private List<ActivePulse> activePulses = new ArrayList<>();
     private Set<Edge> visitedEdges = new HashSet<>();
 
-    // --- SYSTEM SZKLANYCH POWIADOMIEŃ TOAST ---
-    private String toastMessage = "";
-    private Timer toastTimer;
-    private float toastAlpha = 0.0f;
-
     private class ActivePulse {
         Edge edge;
         float pos;
@@ -41,10 +36,11 @@ public class GraphPanel extends JPanel {
     }
 
     // --- KOLORY I PARAMETRY ---
-    private Color backgroundColor = new Color(20, 20, 25); 
+    private Color backgroundColor = new Color(20, 20, 25); // Jeszcze głębszy granat/czerń
     private Color nodeColor = new Color(0, 188, 212);     
     private Color edgeColor = new Color(70, 70, 80);   
     private Color textColor = Color.WHITE;                
+    // Zmieniamy na Neon Cyan dla lepszego efektu 3D
     private Color highlightColor = new Color(0, 255, 255); 
     
     private Node hoveredNode = null; 
@@ -159,82 +155,42 @@ public class GraphPanel extends JPanel {
         addMouseMotionListener(ma);
     }
 
-    private void showGlassNotification(String message) {
-        this.toastMessage = message;
-        this.toastAlpha = 1.0f;
-        if (toastTimer != null && toastTimer.isRunning()) {
-            toastTimer.stop();
-        }
-        toastTimer = new Timer(30, e -> {
-            toastAlpha -= 0.04f;
-            if (toastAlpha <= 0) {
-                toastAlpha = 0;
-                toastMessage = "";
-                toastTimer.stop();
-            }
-            repaint();
-        });
-        Timer delay = new Timer(2500, e -> toastTimer.start());
-        delay.setRepeats(false);
-        delay.start();
-        repaint();
-    }
-
     // --- EKSPORT GRAFU DO PLIKU TEKSTOWEGO ---
     public void exportGraphToCustomTextFile(String filePath) {
         if (graph == null || graph.getEdges().isEmpty()) {
-            showGlassNotification("Błąd: Graf jest pusty!");
+            JOptionPane.showMessageDialog(this, "Graf jest pusty lub nie posiada żadnych krawędzi do zapisu.", "Ostrzeżenie", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-            List<Edge> edges = graph.getEdges();
+            java.util.List<Edge> edges = graph.getEdges();
+            
             for (int i = 0; i < edges.size(); i++) {
                 Edge edge = edges.get(i);
                 Node n1 = graph.getNodes().get(edge.getUId());
                 Node n2 = graph.getNodes().get(edge.getVId());
 
                 if (n1 != null && n2 != null) {
+                    double dx = n2.getX() - n1.getX();
+                    double dy = n2.getY() - n1.getY();
+                    double weight = Math.hypot(dx, dy);
+
+                    // Formatowanie zgodne z wytycznymi przy użyciu kropek dziesiętnych
                     String line = String.format(Locale.US, 
                         "Krawedz%d;W%d:X:%.2f,Y:%.2f; W%d:X:%.2f,Y:%.2f;%.2f",
-                        (i + 1), n1.getId(), n1.getX(), n1.getY(), 
-                        n2.getId(), n2.getX(), n2.getY(), edge.getWeight()
+                        (i + 1), 
+                        n1.getId(), n1.getX(), n1.getY(), 
+                        n2.getId(), n2.getX(), n2.getY(), 
+                        weight
                     );
+
                     writer.write(line);
                     writer.newLine();
                 }
             }
-            showGlassNotification("Zapisano konfigurację do pliku TXT!");
+            JOptionPane.showMessageDialog(this, "Graf został pomyślnie zapisany do pliku tekstowego.", "Sukces", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException e) {
-            showGlassNotification("Błąd zapisu pliku TXT.");
-        }
-    }
-
-    // --- EKSPORT WIDOKU GRAFU DO PLIKU PNG ---
-    public void exportGraphToPNG(String filePath) {
-        if (graph == null || graph.getNodes().isEmpty()) {
-            showGlassNotification("Błąd: Brak danych do zapisu.");
-            return;
-        }
-
-        BufferedImage image = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = image.createGraphics();
-        
-        String tempMsg = toastMessage;
-        toastMessage = ""; // Ukryj toast na zdjęciu
-        
-        paintComponent(g2d);
-        g2d.dispose();
-
-        toastMessage = tempMsg;
-
-        try {
-            boolean success = ImageIO.write(image, "png", new File(filePath));
-            if (success) {
-                showGlassNotification("Wyeksportowano wizualizację do PNG!");
-            }
-        } catch (IOException e) {
-            showGlassNotification("Błąd eksportu PNG.");
+            JOptionPane.showMessageDialog(this, "Wystąpił błąd podczas zapisu pliku:\n" + e.getMessage(), "Błąd zapisu", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -354,11 +310,13 @@ public class GraphPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
+        
+        // --- WYMUSZENIE WYSOKIEJ JAKOŚCI ---
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        // 1. TŁO GRADIENTOWE
+        // --- 1. TŁO GRADIENTOWE (GŁĘBIA 3D) ---
         float[] dist = {0.0f, 0.8f, 1.0f};
         Color[] colors = { backgroundColor.brighter(), backgroundColor, backgroundColor.darker() };
         RadialGradientPaint rgp = new RadialGradientPaint(
@@ -367,7 +325,7 @@ public class GraphPanel extends JPanel {
         g2.setPaint(rgp);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        // 2. DYNAMICZNA SIATKA
+        // --- 2. DYNAMICZNA SIATKA (PERSPEKTYWA) ---
         g2.setStroke(new BasicStroke(1));
         g2.setColor(new Color(255, 255, 255, 10)); 
         double gridSize = 60 * zoomFactor;
@@ -384,7 +342,7 @@ public class GraphPanel extends JPanel {
         int centerX = getWidth() / 2, centerY = getHeight() / 2;
         double midX = (b[0] + b[1]) / 2, midY = (b[2] + b[3]) / 2;
 
-        // 3. KRAWĘDZIE Z WAGAMI
+        // --- 3. KRAWĘDZIE (WARSTWOWY NEON) ---
         for (Edge edge : graph.getEdges()) {
             Node n1 = graph.getNodes().get(edge.getUId());
             Node n2 = graph.getNodes().get(edge.getVId());
@@ -397,87 +355,120 @@ public class GraphPanel extends JPanel {
                 boolean isHovered = (hoveredNode != null && (edge.getUId() == hoveredNode.getId() || edge.getVId() == hoveredNode.getId()));
                 Color baseColor = isHovered ? highlightColor : edgeColor;
 
+                // CIEŃ KRAWĘDZI (EFEKT UNIESIENIA)
                 g2.setColor(new Color(0,0,0, 60));
                 g2.setStroke(new BasicStroke(edgeThickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2.drawLine(x1+3, y1+3, x2+3, y2+3);
 
+                // GLOW (POŚWIATA)
                 int glowAlpha = isHovered ? 70 : 30;
                 g2.setColor(new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), glowAlpha));
                 g2.setStroke(new BasicStroke(edgeThickness * 4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2.drawLine(x1, y1, x2, y2);
                 
+                // LINIA WŁAŚCIWA
                 g2.setColor(baseColor);
                 g2.setStroke(new BasicStroke(edgeThickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2.drawLine(x1, y1, x2, y2);
 
+                // KOD DYNAMICZNIE OBLICZAJĄCY I RYSUJĄCY WAGĘ KRAWĘDZI
                 if (showWeights) {
+                    double dx = n2.getX() - n1.getX();
+                    double dy = n2.getY() - n1.getY();
+                    double weight = Math.hypot(dx, dy); 
+
                     int midEdgeX = (x1 + x2) / 2;
                     int midEdgeY = (y1 + y2) / 2;
-                    String weightText = String.format(Locale.US, "%.2f", edge.getWeight());
 
+                    String weightText = String.format(Locale.US, "%.2f", weight);
+
+                    // --- DYNAMICZNY ROZMIAR CZCIONKI ---
+                    // Dzielimy przez zoomFactor, aby tekst NIE MALAŁ przy oddalaniu grafu
                     int dynamicFontSize = (int) (14 / zoomFactor);
+
+                    // Ograniczenie wielkości czcionki na ekranie monitora (od 11 do 24 pikseli)
                     if (dynamicFontSize < 11) dynamicFontSize = 11;
                     if (dynamicFontSize > 24) dynamicFontSize = 24;
 
                     g2.setFont(new Font("SansSerif", Font.BOLD, dynamicFontSize));
+
+                    // Obliczamy wymiary tła dopasowane do dynamicznego rozmiaru czcionki
                     int textWidth = g2.getFontMetrics().stringWidth(weightText);
                     int textHeight = g2.getFontMetrics().getHeight();
 
-                    g2.setColor(new Color(20, 20, 25, 220)); 
+                    // Rysujemy białe, półprzezroczyste tło (z lekkim marginesem)
+                    g2.setColor(new Color(255, 255, 255, 200)); 
                     g2.fillRect(midEdgeX - textWidth / 2 - 3, midEdgeY - textHeight / 2, textWidth + 6, textHeight);
 
-                    g2.setColor(isHovered ? highlightColor : new Color(150, 150, 160));
+                    // Rysujemy czerwony tekst wagi
+                    g2.setColor(Color.RED);
+                    // textHeight / 4 to matematyczna poprawka, by tekst był idealnie wyśrodkowany w pionie względem krawędzi
                     g2.drawString(weightText, midEdgeX - textWidth / 2, midEdgeY + textHeight / 4);
+                    
+                    g2.setColor(baseColor);
                 }
             }
         }
 
-        // 4. WIERZCHOŁKI
+        // --- 4. WIERZCHOŁKI (GŁĘBIA I PULSOWANIE) ---
         for (Node node : graph.getNodes().values()) {
             int x = (int) ((node.getX() - midX) * scale) + centerX + (int)offsetX;
             int y = (int) ((node.getY() - midY) * scale) + centerY + (int)offsetY;
             
             boolean isHovered = (hoveredNode != null && hoveredNode.getId() == node.getId());
 
+            // WIELOWARSTWOWY CIEŃ 3D
             g2.setColor(new Color(0, 0, 0, 120));
             g2.fillOval(x - nodeSize/2 + 4, y - nodeSize/2 + 4, nodeSize, nodeSize);
+            g2.setColor(new Color(0, 0, 0, 60));
+            g2.fillOval(x - nodeSize/2 + 2, y - nodeSize/2 + 2, nodeSize, nodeSize);
 
+            // PULSOWANIE I BLOOM
             if (isHovered) {
                 float pulse = (float)(Math.sin(System.currentTimeMillis() * 0.008) * 12 + 15);
+                // Główny neonowy bloom
                 g2.setColor(new Color(highlightColor.getRed(), highlightColor.getGreen(), highlightColor.getBlue(), 80));
                 g2.fillOval((int)(x - (nodeSize+pulse)/2), (int)(y - (nodeSize+pulse)/2), (int)(nodeSize+pulse), (int)(nodeSize+pulse));
+                // Zewnętrzny pierścień świetlny
                 g2.setColor(new Color(255, 255, 255, 120));
                 g2.setStroke(new BasicStroke(1.5f));
                 g2.drawOval((int)(x - (nodeSize+pulse)/2), (int)(y - (nodeSize+pulse)/2), (int)(nodeSize+pulse), (int)(nodeSize+pulse));
             } else {
+                // Stała aura dla nieaktywnych
                 g2.setColor(new Color(nodeColor.getRed(), nodeColor.getGreen(), nodeColor.getBlue(), 50));
                 g2.fillOval(x - (nodeSize+10)/2, y - (nodeSize+10)/2, nodeSize+10, nodeSize+10);
             }
 
+            // RDZEŃ WIERZCHOŁKA (GRADIENTOWY DLA EFEKTU KULI)
             GradientPaint gp = new GradientPaint(x-5, y-5, isHovered ? highlightColor.brighter() : nodeColor.brighter(), 
                                                  x+5, y+5, isHovered ? highlightColor : nodeColor);
             g2.setPaint(gp);
             g2.fillOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
 
+            // PODŚWIETLENIE KRAWĘDZI RDZENIA (EFEKT SZKŁA)
             g2.setColor(new Color(255, 255, 255, 100));
             g2.setStroke(new BasicStroke(1));
             g2.drawOval(x - nodeSize/2, y - nodeSize/2, nodeSize, nodeSize);
 
+            // DYNAMICZNY ROZMIAR CZCIONKI DLA ETYKIET WIERZCHOŁKÓW
             int nodeFontSize = (int) (13 / zoomFactor);
+
             if (nodeFontSize < 11) nodeFontSize = 11;
             if (nodeFontSize > 22) nodeFontSize = 22;
 
             g2.setFont(new Font("SansSerif", Font.BOLD, nodeFontSize));
+
+            // ETYKIETA (Z CIENIEM DLA CZYTELNOŚCI)
             int textOffsetY = g2.getFontMetrics().getAscent() / 2; 
             String nodeIdText = String.valueOf(node.getId());
 
             g2.setColor(Color.BLACK);
-            g2.drawString(nodeIdText, x + nodeSize/2 + 6, y + textOffsetY + 1);
+            g2.drawString(nodeIdText, x + nodeSize/2 + 6, y + textOffsetY + 1); // Cień tekstu
             g2.setColor(textColor);
-            g2.drawString(nodeIdText, x + nodeSize/2 + 5, y + textOffsetY);    
+            g2.drawString(nodeIdText, x + nodeSize/2 + 5, y + textOffsetY);    // Tekst właściwy
         }
 
-        // 5. IMPULSY KASKADOWE
+        // --- 5. IMPULSY KASKADOWE (ENERGETYCZNE WYŁADOWANIA) ---
         synchronized(activePulses) {
             for (ActivePulse p : activePulses) {
                 Node nEnd = graph.getNodes().get(p.targetNodeId);
@@ -489,11 +480,15 @@ public class GraphPanel extends JPanel {
                     int px = (int) (x1 + (x2 - x1) * p.pos);
                     int py = (int) (y1 + (y2 - y1) * p.pos);
                     
+                    // GŁÓWNA ENERGIA (CYAN/WHITE)
                     g2.setColor(new Color(0, 255, 255, 150));
                     g2.fillOval(px - 14, py - 14, 28, 28);
+                    
+                    // RDZEŃ ISKRY
                     g2.setColor(Color.WHITE);
                     g2.fillOval(px - 6, py - 6, 12, 12);
                     
+                    // PROMIEŃ ŚWIETLNY
                     g2.setStroke(new BasicStroke(1));
                     g2.setColor(new Color(255, 255, 255, 200));
                     g2.drawLine(px-15, py, px+15, py);
@@ -502,23 +497,37 @@ public class GraphPanel extends JPanel {
             }
         }
         
-        // 6. RENDEROWANIE SZKLANEGO TOASTU POWIADOMIENIA
-        if (!toastMessage.isEmpty() && toastAlpha > 0.05f) {
-            g2.setFont(new Font("SansSerif", Font.PLAIN, 14));
-            int tw = g2.getFontMetrics().stringWidth(toastMessage);
-            int th = 36;
-            int tx = (getWidth() - tw) / 2 - 20;
-            int ty = 25;
+        // Zawsze odświeżaj, by pulsowanie było idealnie płynne
+        repaint();
+    }
+    // --- EKSPORT WIDOKU GRAFU DO PLIKU PNG ---
+    public void exportGraphToPNG(String filePath) {
+        if (graph == null || graph.getNodes().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Graf jest pusty, nie ma czego zapisać.", "Ostrzeżenie", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-            g2.setColor(new Color(30, 30, 40, (int)(200 * toastAlpha)));
-            g2.fillRoundRect(tx, ty, tw + 40, th, 15, 15);
+        // 1. Tworzymy czysty obraz w pamięci o wymiarach naszego panelu
+        BufferedImage image = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+        
+        // 2. Pobieramy kontekst graficzny tego obrazu
+        Graphics2D g2d = image.createGraphics();
+        
+        // 3. Nakazujemy panelowi, aby narysował się na stworzonym obrazie zamiast na ekranie
+        paintComponent(g2d);
+        g2d.dispose(); // Zwalniamy zasoby graficzne
 
-            g2.setStroke(new BasicStroke(1.2f));
-            g2.setColor(new Color(0, 255, 255, (int)(120 * toastAlpha)));
-            g2.drawRoundRect(tx, ty, tw + 40, th, 15, 15);
-
-            g2.setColor(new Color(255, 255, 255, (int)(255 * toastAlpha)));
-            g2.drawString(toastMessage, tx + 20, ty + 22);
+        // 4. Zapisujemy gotowy obraz do pliku PNG
+        try {
+            File file = new File(filePath);
+            boolean success = ImageIO.write(image, "png", file);
+            if (success) {
+                JOptionPane.showMessageDialog(this, "Obraz grafu został pomyślnie zapisany jako PNG!", "Sukces", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Format PNG nie jest obsługiwany przez system.", "Błąd", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Wystąpił błąd podczas zapisu obrazu:\n" + e.getMessage(), "Błąd zapisu", JOptionPane.ERROR_MESSAGE);
         }
     }
 }
