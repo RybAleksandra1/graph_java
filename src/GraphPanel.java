@@ -396,13 +396,10 @@ public class GraphPanel extends JPanel {
                     int textWidth = g2.getFontMetrics().stringWidth(weightText);
                     int textHeight = g2.getFontMetrics().getHeight();
 
-                    // Rysujemy białe, półprzezroczyste tło (z lekkim marginesem)
-                    g2.setColor(new Color(255, 255, 255, 200)); 
-                    g2.fillRect(midEdgeX - textWidth / 2 - 3, midEdgeY - textHeight / 2, textWidth + 6, textHeight);
+                    g2.setColor(new Color(backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue(), 220)); 
+                    g2.fillRect(midEdgeX - textWidth / 2 - 4, midEdgeY - textHeight / 2, textWidth + 8, textHeight);
 
-                    // Rysujemy czerwony tekst wagi
-                    g2.setColor(Color.RED);
-                    // textHeight / 4 to matematyczna poprawka, by tekst był idealnie wyśrodkowany w pionie względem krawędzi
+                    g2.setColor(textColor);
                     g2.drawString(weightText, midEdgeX - textWidth / 2, midEdgeY + textHeight / 4);
                     
                     g2.setColor(baseColor);
