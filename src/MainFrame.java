@@ -81,6 +81,27 @@ public class MainFrame extends JFrame {
             }
         });
 
+        JButton btnSavePng = new JButton("Zapisz jako PNG");
+        btnSavePng.setBackground(new Color(255, 235, 204)); // Ładny, jasnopomarańczowy odcień
+        btnSavePng.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Wybierz miejsce zapisu obrazu (PNG)");
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Obrazy PNG (*.png)", "png"));
+            fileChooser.setPreferredSize(new Dimension(1200, 800));
+            fileChooser.updateUI();
+
+            int userSelection = fileChooser.showSaveDialog(this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File fileToSave = fileChooser.getSelectedFile();
+                String filePath = fileToSave.getAbsolutePath();
+                
+                if (!filePath.toLowerCase().endsWith(".png")) {
+                    filePath += ".png";
+                }
+                graphPanel.exportGraphToPNG(filePath);
+            }
+        });
+
         JButton btnAnimate = new JButton("Animuj impuls");
         btnAnimate.addActionListener(e -> {
             if (graphPanel.getGraph() != null) graphPanel.startCascade(1);
@@ -117,7 +138,9 @@ public class MainFrame extends JFrame {
         sidePanel.add(createStyledLabel(" Akcje:"));
         sidePanel.add(btnReset);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        sidePanel.add(btnSaveTxt);                              
+        sidePanel.add(btnSaveTxt);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        sidePanel.add(btnSavePng);                            
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnAnimate); 
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
@@ -159,15 +182,27 @@ public class MainFrame extends JFrame {
 
         for (Component c : sidePanel.getComponents()) {
             if (c instanceof JButton) {
-                styleButton((JButton) c, isDark ? new Color(65, 65, 65, 220) : new Color(220, 220, 220, 220), fgColor);
-            } else if (c instanceof JLabel || c instanceof JCheckBox) {
+                String btnText = ((JButton) c).getText();
+                // Sprawdzamy czy to przycisk TXT lub PNG - jeśli tak, zostawiamy ich kolory, dbając o układ
+                if (btnText.equals("Zapisz jako TXT") || btnText.equals("Zapisz jako PNG")) {
+                    ((JButton) c).setForeground(Color.BLACK);
+                    ((JButton) c).setMaximumSize(new Dimension(280, 40));
+                    ((JButton) c).setAlignmentX(Component.LEFT_ALIGNMENT);
+                    ((JButton) c).setFocusPainted(false);
+                } else {
+                    // Wszystkie standardowe przyciski (kolory, reset, itp.) zmieniają się wg motywu
+                    styleButton((JButton) c, isDark ? new Color(65, 65, 65, 220) : new Color(220, 220, 220, 220), fgColor);
+                }
+            } 
+            else if (c instanceof JLabel || c instanceof JCheckBox) {
                 c.setForeground(fgColor);
                 c.setFont(new Font("SansSerif", Font.BOLD, 16));
                 if (c instanceof JCheckBox) {
                     ((JCheckBox) c).setOpaque(false);
                     ((JCheckBox) c).setMaximumSize(new Dimension(280, 40));
                 }
-            } else if (c instanceof JSlider) {
+            }
+            else if (c instanceof JSlider) {
                 styleSlider((JSlider) c, isDark);
             }
         }

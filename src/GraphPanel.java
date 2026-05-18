@@ -1,9 +1,11 @@
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
+import java.awt.image.BufferedImage;
 
 public class GraphPanel extends JPanel {
     private Graph graph;
@@ -496,5 +499,35 @@ public class GraphPanel extends JPanel {
         
         // Zawsze odświeżaj, by pulsowanie było idealnie płynne
         repaint();
+    }
+    // --- EKSPORT WIDOKU GRAFU DO PLIKU PNG ---
+    public void exportGraphToPNG(String filePath) {
+        if (graph == null || graph.getNodes().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Graf jest pusty, nie ma czego zapisać.", "Ostrzeżenie", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // 1. Tworzymy czysty obraz w pamięci o wymiarach naszego panelu
+        BufferedImage image = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+        
+        // 2. Pobieramy kontekst graficzny tego obrazu
+        Graphics2D g2d = image.createGraphics();
+        
+        // 3. Nakazujemy panelowi, aby narysował się na stworzonym obrazie zamiast na ekranie
+        paintComponent(g2d);
+        g2d.dispose(); // Zwalniamy zasoby graficzne
+
+        // 4. Zapisujemy gotowy obraz do pliku PNG
+        try {
+            File file = new File(filePath);
+            boolean success = ImageIO.write(image, "png", file);
+            if (success) {
+                JOptionPane.showMessageDialog(this, "Obraz grafu został pomyślnie zapisany jako PNG!", "Sukces", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Format PNG nie jest obsługiwany przez system.", "Błąd", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Wystąpił błąd podczas zapisu obrazu:\n" + e.getMessage(), "Błąd zapisu", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
