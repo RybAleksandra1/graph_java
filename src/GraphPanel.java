@@ -45,6 +45,8 @@ public class GraphPanel extends JPanel {
     private int edgeThickness = 3;
     private double zoomFactor = 1.0;
 
+    private boolean showWeights = true;
+
     private Node draggedNode = null; 
     private Edge draggedEdge = null; 
     private Point lastMousePoint = null; 
@@ -166,11 +168,9 @@ public class GraphPanel extends JPanel {
                 Node n2 = graph.getNodes().get(edge.getVId());
 
                 if (n1 != null && n2 != null) {
-                    // Domyślna waga ustawiona jako przykładowe 1.50
-                    double weight = 1.50; 
-                    
-                    // Jeśli Twoja klasa Edge ma metodę zwracającą wagę (np. edge.getWeight()), możesz zamienić na:
-                    // double weight = edge.getWeight();
+                    double dx = n2.getX() - n1.getX();
+                    double dy = n2.getY() - n1.getY();
+                    double weight = Math.hypot(dx, dy);
 
                     // Formatowanie zgodne z wytycznymi przy użyciu kropek dziesiętnych
                     String line = String.format(Locale.US, 
@@ -299,6 +299,11 @@ public class GraphPanel extends JPanel {
     public void setZoomFactor(double z) { this.zoomFactor = Math.max(0.1, z); repaint(); }
     public double getZoomFactor() { return zoomFactor; }
 
+    public void setShowWeights(boolean show) { 
+        this.showWeights = show; 
+        repaint(); 
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
@@ -362,6 +367,37 @@ public class GraphPanel extends JPanel {
                 g2.setColor(baseColor);
                 g2.setStroke(new BasicStroke(edgeThickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2.drawLine(x1, y1, x2, y2);
+
+                // KOD DYNAMICZNIE OBLICZAJĄCY I RYSUJĄCY WAGĘ KRAWĘDZI
+                if (showWeights) {
+                    double dx = n2.getX() - n1.getX();
+                    double dy = n2.getY() - n1.getY();
+                    double weight = Math.hypot(dx, dy); 
+
+                    int midEdgeX = (x1 + x2) / 2;
+                    int midEdgeY = (y1 + y2) / 2;
+
+                    String weightText = String.format(Locale.US, "%.2f", weight);
+
+                    // --- DYNAMICZNY ROZMIAR CZCIONKI ---
+                    int dynamicFontSize = (int) Math.max(9, 14 * zoomFactor);
+                    g2.setFont(new Font("SansSerif", Font.BOLD, dynamicFontSize));
+
+                    // Obliczamy wymiary tła dopasowane do dynamicznego rozmiaru czcionki
+                    int textWidth = g2.getFontMetrics().stringWidth(weightText);
+                    int textHeight = g2.getFontMetrics().getHeight();
+
+                    // Rysujemy białe, półprzezroczyste tło (z lekkim marginesem)
+                    g2.setColor(new Color(255, 255, 255, 200)); 
+                    g2.fillRect(midEdgeX - textWidth / 2 - 3, midEdgeY - textHeight / 2, textWidth + 6, textHeight);
+
+                    // Rysujemy czerwony tekst wagi
+                    g2.setColor(Color.RED);
+                    // textHeight / 4 to matematyczna poprawka, by tekst był idealnie wyśrodkowany w pionie względem krawędzi
+                    g2.drawString(weightText, midEdgeX - textWidth / 2, midEdgeY + textHeight / 4);
+                    
+                    g2.setColor(baseColor);
+                }
             }
         }
 

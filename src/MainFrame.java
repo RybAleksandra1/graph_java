@@ -47,10 +47,14 @@ public class MainFrame extends JFrame {
         chkDarkMode.setFocusPainted(false);
         chkDarkMode.addActionListener(e -> applyGlobalTheme(chkDarkMode.isSelected()));
 
+        JCheckBox chkShowWeights = new JCheckBox("Pokaż wagi krawędzi", true);
+        chkShowWeights.setFocusPainted(false);
+        chkShowWeights.addActionListener(e -> graphPanel.setShowWeights(chkShowWeights.isSelected()));
+
         JButton btnReset = new JButton("Przywróć układ");
         btnReset.addActionListener(e -> graphPanel.resetLayout());
 
-        // NOWY PRZYCISK: Zapis struktury do pliku tekstowego
+        // Zapis struktury do pliku tekstowego
         JButton btnSaveTxt = new JButton("Zapisz jako TXT");
         btnSaveTxt.setBackground(new Color(220, 255, 220)); // Delikatny zielony dla odróżnienia akcji zapisu
         btnSaveTxt.addActionListener(e -> {
@@ -116,6 +120,8 @@ public class MainFrame extends JFrame {
         sidePanel.add(btnSaveTxt);                              
         sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
         sidePanel.add(btnAnimate); 
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        sidePanel.add(chkShowWeights);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 25)));
         sidePanel.add(createStyledLabel(" Rozmiar punktów:"));
         sidePanel.add(sliderSize);
